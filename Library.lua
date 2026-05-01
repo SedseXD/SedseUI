@@ -1,10 +1,11 @@
 --[[ 
-    MONOLITH FINGERPAINT LIBRARY (V5 - Ather Integration + Lucide Icons)
+    MONOLITH FINGERPAINT LIBRARY (V6 - Window Controls & Keybind)
     Designed for: loadstring execution
 ]]
 
 local uis = game:GetService("UserInputService") 
 local tween_service = game:GetService("TweenService")
+local http_service = game:GetService("HttpService")
 
 -- Safe Parent Getter
 local function get_ui_parent()
@@ -40,7 +41,7 @@ local library = {
     font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 }
 
--- Safe Lazy-Load Lucide Icons (Prevents HTTP Freezing)
+-- Safe Lazy-Load Lucide Icons
 local Icons
 task.spawn(function()
     pcall(function()
@@ -142,7 +143,7 @@ function library:window(props)
 
     local topbar = library:create("Frame", { Parent = main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0 })
     library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 8)})
-    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 10), Position = dim2(0, 0, 1, -10), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0}) 
+    local topbar_filler = library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 10), Position = dim2(0, 0, 1, -10), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0}) 
     library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0}) 
     library:draggify(main, topbar)
 
@@ -152,9 +153,28 @@ function library:window(props)
     local titleOff = winIcon and 38 or 12
 
     library:create("TextLabel", {
-        Parent = topbar, Text = (props.name or props.Name or "Nebula UI"), Size = dim2(1, -titleOff, 1, 0), Position = dim2(0, titleOff, 0, 0),
+        Parent = topbar, Text = (props.name or props.Name or "Nebula UI"), Size = dim2(1, -(titleOff + 80), 1, 0), Position = dim2(0, titleOff, 0, 0),
         BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 18
     })
+
+    -- Window Controls (Minimize & Close)
+    local minBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -70, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
+    library:create("UICorner", {Parent = minBtn, CornerRadius = dim(0, 4)})
+    local minIconObj = get_icon("lucide:minus", Theme.MutedText)
+    if minIconObj then minIconObj.Size = dim2(0, 14, 0, 14); minIconObj.Position = dim2(0.5, 0, 0.5, 0); minIconObj.AnchorPoint = Vector2.new(0.5, 0.5); minIconObj.Parent = minBtn end
+
+    local closeBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -36, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
+    library:create("UICorner", {Parent = closeBtn, CornerRadius = dim(0, 4)})
+    local closeIconObj = get_icon("lucide:x", Theme.MutedText)
+    if closeIconObj then closeIconObj.Size = dim2(0, 14, 0, 14); closeIconObj.Position = dim2(0.5, 0, 0.5, 0); closeIconObj.AnchorPoint = Vector2.new(0.5, 0.5); closeIconObj.Parent = closeBtn end
+
+    minBtn.MouseEnter:Connect(function() library:tween(minBtn, {BackgroundColor3 = Theme.HoverBG}, 0.15); color_icon(minIconObj, Theme.Text) end)
+    minBtn.MouseLeave:Connect(function() library:tween(minBtn, {BackgroundColor3 = Theme.TopbarBG}, 0.15); color_icon(minIconObj, Theme.MutedText) end)
+    
+    closeBtn.MouseEnter:Connect(function() library:tween(closeBtn, {BackgroundColor3 = rgb(200, 50, 50)}, 0.15); color_icon(closeIconObj, Theme.Text) end)
+    closeBtn.MouseLeave:Connect(function() library:tween(closeBtn, {BackgroundColor3 = Theme.TopbarBG}, 0.15); color_icon(closeIconObj, Theme.MutedText) end)
+    
+    closeBtn.MouseButton1Click:Connect(function() screen:Destroy() end)
 
     local sidebar = library:create("Frame", { Parent = main, Position = dim2(0, 0, 0, 41), Size = dim2(0, 140, 1, -41), BackgroundColor3 = Theme.SidebarBG, BorderSizePixel = 0 })
     library:create("Frame", {Parent = sidebar, Size = dim2(0, 1), Position = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
@@ -178,11 +198,44 @@ function library:window(props)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = false end
     end)
 
+    -- Minimize Logic
+    local isMinimized = false
+    local savedSize = main.Size
+    minBtn.MouseButton1Click:Connect(function()
+        isMinimized = not isMinimized
+        if isMinimized then
+            savedSize = main.Size
+            resizeHandle.Visible = false
+            sidebar.Visible = false
+            page_holder.Visible = false
+            topbar_filler.Visible = false
+            library:tween(main, {Size = dim2(0, savedSize.X.Offset, 0, 40)}, 0.25)
+        else
+            topbar_filler.Visible = true
+            local t = library:tween(main, {Size = savedSize}, 0.25)
+            t.Completed:Connect(function()
+                if not isMinimized then
+                    sidebar.Visible = true
+                    page_holder.Visible = true
+                    resizeHandle.Visible = true
+                end
+            end)
+        end
+    end)
+
+    -- Toggle Menu
     win.toggle_menu = function(a, b) 
         local state = (type(a) == "boolean") and a or b
         if state == nil then state = not main.Visible end
         main.Visible = state
     end
+
+    -- Toggle Hotkey (Right Control)
+    uis.InputBegan:Connect(function(input, gpe)
+        if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
+            win.toggle_menu()
+        end
+    end)
 
     function win:Tab(props)
         local tab = { name = props.name or props.Name or "Tab" }
@@ -366,18 +419,75 @@ function library:window(props)
         end
 
         function section_api:Colorpicker(p)
-            local c = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
-            library:create("UICorner", {Parent = c, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = c, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(c) end
-            local disp = library:create("Frame", { Parent = c, Size = dim2(0, 20, 0, 16), Position = dim2(1, -28, 0.5, -8), BackgroundColor3 = rgb(255, 0, 0) })
+            local open = false
+            local color = p.default or rgb(255, 0, 0)
+            local r, g, b = color.R * 255, color.G * 255, color.B * 255
+
+            local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
+            library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
+
+            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
+            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
+            if p.Premium or p.premium then PremiumOverlay(btn) end
+
+            local disp = library:create("Frame", { Parent = btn, Size = dim2(0, 20, 0, 16), Position = dim2(1, -28, 0.5, -8), BackgroundColor3 = color })
             library:create("UICorner", {Parent = disp, CornerRadius = dim(0, 4)})
+
+            local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
+            library:create("UIListLayout", {Parent = container, Padding = dim(0, 4)})
+
+            btn.MouseButton1Click:Connect(function() open = not open; container.Visible = open end)
+
+            local function add_slider(name, max_val, init_val, callback)
+                local s = library:create("Frame", {Parent = container, Size = dim2(1, 0, 0, 36), BackgroundColor3 = Theme.HoverBG})
+                library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)})
+                library:create("TextLabel", {Parent = s, Text = "  " .. name, Size = dim2(1, 0, 0, 16), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 11})
+                
+                local bar = library:create("Frame", {Parent = s, Size = dim2(1, -12, 0, 6), Position = dim2(0, 6, 0, 22), BackgroundColor3 = Theme.MainBG})
+                local fill = library:create("Frame", {Parent = bar, Size = dim2(init_val/max_val, 0, 1, 0), BackgroundColor3 = Theme.Accent})
+                library:create("UICorner", {Parent = bar, CornerRadius = dim(1, 0)}); library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
+                
+                local dragging = false
+                bar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true end end)
+                uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+                uis.InputChanged:Connect(function(i)
+                    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                        local pct = math.clamp((uis:GetMouseLocation().X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+                        fill.Size = dim2(pct, 0, 1, 0); callback(math.floor(pct * max_val))
+                    end
+                end)
+            end
+
+            local function update_color()
+                color = rgb(r, g, b); disp.BackgroundColor3 = color
+                if p.Callback then p.Callback(color) end
+            end
+
+            add_slider("Red", 255, r, function(v) r=v; update_color() end)
+            add_slider("Green", 255, g, function(v) g=v; update_color() end)
+            add_slider("Blue", 255, b, function(v) b=v; update_color() end)
+
             return {}
         end
 
         function section_api:Keybind(p)
-            local k = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Keybind") .. " : [NONE]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
-            library:create("UICorner", {Parent = k, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = k, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(k) end
+            local key = p.default or Enum.KeyCode.Unknown
+            local btn = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Keybind") .. " :[" .. key.Name .. "]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
+            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
+            if p.Premium or p.premium then PremiumOverlay(btn) end
+
+            local picking = false
+            btn.MouseButton1Click:Connect(function()
+                picking = true; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [...]"
+            end)
+
+            uis.InputBegan:Connect(function(input, gpe)
+                if picking and input.UserInputType == Enum.UserInputType.Keyboard then
+                    picking = false; key = input.KeyCode; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " :[" .. key.Name .. "]"
+                elseif not gpe and input.KeyCode == key and key ~= Enum.KeyCode.Unknown then
+                    if p.Callback then p.Callback() end
+                end
+            end)
             return {}
         end
 
