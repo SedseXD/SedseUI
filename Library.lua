@@ -128,57 +128,60 @@ local function PremiumOverlay(parent)
 end
 
 -- LOADING ANIMATION LOGIC
--- Added 'windowFrame' as an argument
 local function BootSequence(windowFrame, windowName)
-    -- We no longer create a ScreenGui, we just create a frame inside the window
+    -- Create overlay frame that covers the window
     local main = library:create("Frame", {
-        Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), ZIndex = 1000
+        Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), 
+        ZIndex = 1000, BorderSizePixel = 0
     })
     
     local logo = library:create("TextLabel", {
         Parent = main, Text = windowName, Position = dim2(0.5, 0, 0.4, 0), AnchorPoint = Vector2.new(0.5, 0.5),
         Size = dim2(0, 200, 0, 50), BackgroundTransparency = 1, TextColor3 = Theme.Text,
-        FontFace = library.font, TextSize = 32, TextTransparency = 1
+        FontFace = library.font, TextSize = 32, TextTransparency = 1, ZIndex = 1001
     })
     
     local barBg = library:create("Frame", {
         Parent = main, Size = dim2(0, 200, 0, 4), Position = dim2(0.5, 0, 0.6, 0), AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Theme.Outline, BorderSizePixel = 0
+        BackgroundColor3 = Theme.Outline, BorderSizePixel = 0, ZIndex = 1001
     })
     library:create("UICorner", {Parent = barBg})
     
     local barFill = library:create("Frame", {
-        Parent = barBg, Size = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Accent, BorderSizePixel = 0
+        Parent = barBg, Size = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 1002
     })
     library:create("UICorner", {Parent = barFill})
 
     local status = library:create("TextLabel", {
         Parent = main, Text = "Initializing...", Position = dim2(0.5, 0, 0.65, 0), AnchorPoint = Vector2.new(0.5, 0.5),
         Size = dim2(0, 200, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.MutedText,
-        FontFace = library.font, TextSize = 14, TextTransparency = 1
+        FontFace = library.font, TextSize = 14, TextTransparency = 1, ZIndex = 1001
     })
 
-    -- Animation Sequence
-    library:tween(logo, {TextTransparency = 0}, 1)
-    task.wait(0.5)
-    library:tween(status, {TextTransparency = 0}, 0.5)
-    
-    local steps = {"Loading Core...", "Fetching Assets...", "Applying Theme...", "Finalizing..."}
-    for i, step in ipairs(steps) do
-        status.Text = step
-        library:tween(barFill, {Size = dim2(i/ #steps, 0, 1, 0)}, 0.5)
-        task.wait(0.6)
-    end
-    
-    library:tween(logo, {TextTransparency = 1}, 0.5)
-    library:tween(status, {TextTransparency = 1}, 0.5)
-    library:tween(barFill, {BackgroundTransparency = 1}, 0.3)
-    library:tween(barBg, {BackgroundTransparency = 1}, 0.3)
-    task.wait(0.5)
-    
-    local fadeOut = library:tween(main, {BackgroundTransparency = 1}, 1)
-    fadeOut.Completed:Connect(function() main:Destroy() end)
-    task.wait(1)
+    -- Return a coroutine that yields properly
+    return coroutine.wrap(function()
+        -- Animation Sequence
+        library:tween(logo, {TextTransparency = 0}, 1)
+        task.wait(0.5)
+        library:tween(status, {TextTransparency = 0}, 0.5)
+        
+        local steps = {"Loading Core...", "Fetching Assets...", "Applying Theme...", "Finalizing..."}
+        for i, step in ipairs(steps) do
+            status.Text = step
+            library:tween(barFill, {Size = dim2(i/ #steps, 0, 1, 0)}, 0.5)
+            task.wait(0.6)
+        end
+        
+        library:tween(logo, {TextTransparency = 1}, 0.5)
+        library:tween(status, {TextTransparency = 1}, 0.5)
+        library:tween(barFill, {BackgroundTransparency = 1}, 0.3)
+        library:tween(barBg, {BackgroundTransparency = 1}, 0.3)
+        task.wait(0.5)
+        
+        local fadeOut = library:tween(main, {BackgroundTransparency = 1}, 1)
+        fadeOut.Completed:Connect(function() main:Destroy() end)
+        task.wait(1)
+    end)
 end
 
 -- Window System
@@ -190,11 +193,6 @@ function library:window(props)
         Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
         BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
     })
-
-    -- MOVE THE ANIMATION HERE (After 'main' is created)
-    if props.Loading then
-        BootSequence(main, props.name or "Nebula UI")
-    end
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
@@ -259,6 +257,12 @@ function library:window(props)
         local state = (type(a) == "boolean") and a or b; if state == nil then state = not main.Visible end; main.Visible = state
     end
     uis.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.RightControl then win.toggle_menu() end end)
+
+    -- RUN BOOT ANIMATION IF ENABLED (moved to end, runs as coroutine)
+    if props.Loading then
+        local bootCoroutine = BootSequence(main, props.name or "Nebula UI")
+        bootCoroutine() -- Execute the animation coroutine
+    end
 
     function win:Tab(props)
         local tab = { name = props.name or props.Name or "Tab" }
