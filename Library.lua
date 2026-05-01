@@ -19,6 +19,22 @@ end
 
 local ui_parent = get_ui_parent()
 
+-- Notification Container Setup
+local notif_screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithNotifs"})
+local notif_container = library:create("Frame", {
+    Parent = notif_screen, 
+    Size = dim2(0, 300, 1, 0), 
+    Position = dim2(1, -310, 0, 0), 
+    BackgroundTransparency = 1
+})
+library:create("UIListLayout", {
+    Parent = notif_container, 
+    Padding = dim(0, 10), 
+    VerticalAlignment = Enum.VerticalAlignment.Bottom, 
+    HorizontalAlignment = Enum.HorizontalAlignment.Right
+})
+library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
+
 -- Shorthands & Theme
 local dim2 = UDim2.new
 local dim = UDim.new 
@@ -551,5 +567,80 @@ function library:init_config(win)
     sec:Button({name = "Save Config", Callback = function() print("Config Saved") end})
 end
 
-local notifications = { create_notification = function(props) print("Notification: " .. (props.name or "Hello")) end }
+-- Professional Notification System
+local notifications = {}
+
+function notifications:create_notification(props)
+    local type = props.type or "Info" -- "Success", "Error", "Info"
+    local duration = props.duration or 5
+    
+    -- Color Mapping
+    local type_colors = {
+        Success = rgb(0, 200, 100),
+        Error = rgb(200, 50, 50),
+        Info = Theme.Accent
+    }
+    local accent_color = type_colors[type] or type_colors.Info
+    
+    -- Icon Mapping
+    local type_icons = {
+        Success = "lucide:check-circle",
+        Error = "lucide:alert-circle",
+        Info = "lucide:info"
+    }
+
+    -- Notification Frame
+    local notif = library:create("Frame", {
+        Parent = notif_container,
+        Size = dim2(0, 280, 0, 60),
+        BackgroundColor3 = Theme.MainBG,
+        Position = dim2(1, 10, 0, 0), -- Start off-screen for tween
+        BorderSizePixel = 0
+    })
+    library:create("UICorner", {Parent = notif, CornerRadius = dim(0, 6)})
+    library:create("UIStroke", {Parent = notif, Color = Theme.Outline, Thickness = 1})
+
+    -- Side Accent Bar
+    local bar = library:create("Frame", {
+        Parent = notif,
+        Size = dim2(0, 4, 1, 0),
+        BackgroundColor3 = accent_color,
+        BorderSizePixel = 0
+    })
+    library:create("UICorner", {Parent = bar, CornerRadius = dim(0, 6)})
+
+    -- Icon
+    local icon = get_icon(type_icons[type] or type_icons.Info, accent_color)
+    if icon then
+        icon.Size = dim2(0, 20, 0, 20)
+        icon.Position = dim2(0, 12, 0.5, 0)
+        icon.AnchorPoint = Vector2.new(0, 0.5)
+        icon.Parent = notif
+    end
+
+    -- Text
+    local label = library:create("TextLabel", {
+        Parent = notif,
+        Text = props.name or "Notification",
+        Size = dim2(1, -45, 1, 0),
+        Position = dim2(0, 40, 0, 0),
+        BackgroundTransparency = 1,
+        TextColor3 = Theme.Text,
+        FontFace = library.font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true
+    })
+
+    -- Animation: Slide In
+    library:tween(notif, {Position = dim2(0, 0, 0, 0)}, 0.5)
+
+    -- Auto-Destroy Sequence
+    task.delay(duration, function()
+        library:tween(notif, {Position = dim2(1, 10, 0, 0)}, 0.5)
+        task.wait(0.5)
+        notif:Destroy()
+    end)
+end
+
 return library, notifications
