@@ -1,13 +1,25 @@
 --[[ 
-    MONOLITH FINGERPAINT LIBRARY (V2 - Premium UI Update)
+    MONOLITH FINGERPAINT LIBRARY (V3 - Bulletproof Execution)
     Designed for: loadstring execution
+    Features: Left/Right Columns, Safe Font Loading, Safe CoreGui
 ]]
 
 local uis = game:GetService("UserInputService") 
 local tween_service = game:GetService("TweenService")
-local coregui = game:GetService("CoreGui")
+local http_service = game:GetService("HttpService")
 
--- Shorthands & Theme Colors
+-- Safe Parent Getter (Prevents silent CoreGui crashes)
+local function get_ui_parent()
+    local success, parent = pcall(function() return gethui and gethui() end)
+    if success and parent then return parent end
+    success, parent = pcall(function() return game:GetService("CoreGui") end)
+    if success and parent then return parent end
+    return game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local ui_parent = get_ui_parent()
+
+-- Shorthands & Theme
 local dim2 = UDim2.new
 local dim = UDim.new 
 local rgb = Color3.fromRGB
@@ -27,10 +39,38 @@ local Theme = {
 
 -- Library state
 local library = {
-    font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
+    directory = "MonolithLib",
+    font = Font.fromEnum(Enum.Font.Gotham) -- Fallback
 }
 
--- Utility Functions
+-- Foolproof Font Loader
+pcall(function()
+    if writefile and makefolder and getcustomasset then
+        if not isfolder(library.directory) then makefolder(library.directory) end
+        if not isfolder(library.directory .. "/fonts") then makefolder(library.directory .. "/fonts") end
+        
+        local ttf_path = library.directory .. "/fonts/FingerPaint.ttf"
+        local json_path = library.directory .. "/fonts/FingerPaint.json"
+        
+        -- Download TTF if we don't have it
+        if not isfile(ttf_path) then
+            writefile(ttf_path, game:HttpGet("https://raw.githubusercontent.com/google/fonts/main/ofl/fingerpaint/FingerPaint-Regular.ttf"))
+        end
+        
+        -- Generate JSON FontFamily required by Font.new
+        if not isfile(json_path) then
+            local json_data = {
+                name = "FingerPaint",
+                faces = {{ name = "Regular", weight = 400, style = "normal", assetId = getcustomasset(ttf_path) }}
+            }
+            writefile(json_path, http_service:JSONEncode(json_data))
+        end
+        
+        library.font = Font.new(getcustomasset(json_path), Enum.FontWeight.Regular)
+    end
+end)
+
+-- Utility
 function library:tween(obj, props, time) 
     local t = tween_service:Create(obj, TweenInfo.new(time or 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
     t:Play()
@@ -65,7 +105,7 @@ end
 function library:window(props)
     local win = { items = {}, tabs = {} }
 
-    local screen = library:create("ScreenGui", {Parent = coregui, Name = "MonolithUI", ResetOnSpawn = false})
+    local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
     
     local main = library:create("Frame", {
         Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
@@ -78,12 +118,12 @@ function library:window(props)
         Parent = main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0
     })
     library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 8)})
-    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 10), Position = dim2(0, 0, 1, -10), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0}) -- Hide bottom corner
-    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0}) -- Separator line
+    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 10), Position = dim2(0, 0, 1, -10), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0}) 
+    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0}) 
     library:draggify(main, topbar)
 
     library:create("TextLabel", {
-        Parent = topbar, Text = "  " .. (props.name or "Nebula UI"), Size = dim2(1, 0, 1, 0), Position = dim2(0, 10, 0, 0),
+        Parent = topbar, Text = "  " .. (props.name or props.Name or "Nebula UI"), Size = dim2(1, 0, 1, 0), Position = dim2(0, 10, 0, 0),
         BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 18
     })
 
@@ -99,7 +139,12 @@ function library:window(props)
     library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center})
     library:create("UIPadding", {Parent = sidebar, PaddingTop = dim(0, 10)})
 
-    function win:toggle_menu(bool) main.Visible = bool end
+    -- SAFE TOGGLE MENU (Handles both . and : syntaxes)
+    win.toggle_menu = function(a, b) 
+        local state = (type(a) == "boolean") and a or b
+        if state == nil then state = not main.Visible end
+        main.Visible = state
+    end
 
     function win:Tab(props)
         local tab = { name = props.name or props.Name or "Tab" }
@@ -113,12 +158,18 @@ function library:window(props)
 
         local page = library:create("ScrollingFrame", {
             Parent = page_holder, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false,
-            ScrollBarThickness = 2, AutomaticCanvasSize = Enum.AutomaticSize.Y
+            ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y
         })
         library:create("UIListLayout", {Parent = page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 15), SortOrder = Enum.SortOrder.LayoutOrder})
         library:create("UIPadding", {Parent = page, PaddingLeft = dim(0, 15), PaddingRight = dim(0, 15), PaddingTop = dim(0, 15), PaddingBottom = dim(0, 15)})
 
-        -- Auto-select first tab
+        -- LEFT AND RIGHT COLUMNS
+        local left_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 1, 0), BackgroundTransparency = 1 })
+        library:create("UIListLayout", {Parent = left_col, Padding = dim(0, 10)})
+        
+        local right_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 1, 0), BackgroundTransparency = 1 })
+        library:create("UIListLayout", {Parent = right_col, Padding = dim(0, 10)})
+
         if #win.tabs == 0 then
             page.Visible = true; btn.TextColor3 = Theme.Text; btn.BackgroundColor3 = Theme.ElementBG
         end
@@ -126,12 +177,10 @@ function library:window(props)
 
         btn.MouseButton1Click:Connect(function()
             for _, t in pairs(win.tabs) do 
-                t.page.Visible = false
-                t.btn.TextColor3 = Theme.MutedText
+                t.page.Visible = false; t.btn.TextColor3 = Theme.MutedText
                 library:tween(t.btn, {BackgroundColor3 = Theme.MainBG}, 0.15)
             end
-            page.Visible = true
-            btn.TextColor3 = Theme.Text
+            page.Visible = true; btn.TextColor3 = Theme.Text
             library:tween(btn, {BackgroundColor3 = Theme.ElementBG}, 0.15)
         end)
 
@@ -160,6 +209,7 @@ function library:window(props)
                 task.wait(0.1); library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1)
                 if p.Callback then p.Callback() end
             end)
+            return {}
         end
 
         function section_api:Toggle(p)
@@ -263,6 +313,7 @@ function library:window(props)
             box.FocusLost:Connect(function()
                 if p.Callback then p.Callback(box.Text) end
             end)
+            return {}
         end
 
         function section_api:Dropdown(p)
@@ -299,11 +350,13 @@ function library:window(props)
             return {}
         end
 
-        -- Create Section
+        -- Create Section (Supports Left & Right Columns!)
         function tab:Section(props)
             local s = {}
+            local parent_col = (string.lower(props.side or "left") == "right") and right_col or left_col
+
             s.elements = library:create("Frame", {
-                Parent = page, Size = dim2(0.5, -8, 0, 0), BackgroundColor3 = Theme.SectionBG, AutomaticSize = Enum.AutomaticSize.Y
+                Parent = parent_col, Size = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.SectionBG, AutomaticSize = Enum.AutomaticSize.Y
             })
             library:create("UICorner", {Parent = s.elements, CornerRadius = dim(0, 8)})
             library:create("UIStroke", {Parent = s.elements, Color = Theme.Outline, Thickness = 1})
@@ -311,7 +364,7 @@ function library:window(props)
             library:create("UIPadding", {Parent = s.elements, PaddingTop = dim(0, 10), PaddingBottom = dim(0, 10), PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10)})
             
             library:create("TextLabel", {
-                Parent = s.elements, Text = props.name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1,
+                Parent = s.elements, Text = props.name or props.Name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1,
                 TextColor3 = Theme.Accent, FontFace = library.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center
             })
             library:create("Frame", {Parent = s.elements, Size = dim2(1, 0, 0, 1), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
@@ -328,8 +381,8 @@ end
 
 -- Config System
 function library:init_config(win)
-    local configTab = win:Tab({name = "Settings"})
-    local sec = configTab:Section({name = "Configuration"})
+    local configTab = win:Tab({name = "Configs"})
+    local sec = configTab:Section({name = "Settings", side = "left"})
     sec:Button({name = "Save Config", Callback = function() print("Config Saved") end})
 end
 
