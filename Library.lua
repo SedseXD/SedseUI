@@ -395,13 +395,11 @@ function library:window(props)
                 if p.Callback then p.Callback(finalColor) end
             end
 
-            -- Fix Initial Dot Position
-            local angle = math.atan2(-offset.Y, offset.X) -- Negating Y fixes the "Upside Down" colors
+            -- Correct Initial Dot Position
+            local angle = (h * math.pi * 2) - (math.pi / 2)
             pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
 
             local draggingWheel, draggingVal = false, false
-            
-            -- GET INSET HERE
             local inset = gui_service:GetGuiInset()
 
             wheel.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = true end end)
@@ -414,30 +412,23 @@ function library:window(props)
                     local correctedMouse = Vector2.new(mLoc.X, mLoc.Y - inset.Y)
                     
                     if draggingWheel then
-                        -- 1. Calculate Relative Position
                         local wheelCenter = wheel.AbsolutePosition + (wheel.AbsoluteSize / 2)
                         local offset = correctedMouse - wheelCenter
                         local rad = wheel.AbsoluteSize.X / 2
-                        
-                        -- 2. Clamp to Circle
                         if offset.Magnitude > rad then offset = offset.Unit * rad end
                         
-                        -- 3. Set Dot Position (Absolute to Scale)
                         pickerDot.Position = dim2(0.5 + (offset.X / wheel.AbsoluteSize.X), 0, 0.5 + (offset.Y / wheel.AbsoluteSize.Y), 0)
                         
-                        -- 4. MATH FIX: Calculate Hue from Angle
-                        -- atan2 returns -PI to PI. We normalize it to 0-1
-                        local angle = math.atan2(offset.Y, offset.X)
+                        -- FIXED MATH: Use -offset.Y to account for Roblox UI coordinate system
+                        local angle = math.atan2(-offset.Y, offset.X)
                         h = (angle / (math.pi * 2)) + 0.5
-                        h = h % 1 -- This ensures the value stays between 0 and 1 perfectly
+                        h = h % 1 -- Keep hue between 0 and 1
                         s = offset.Magnitude / rad
                         update_color()
                         
                     elseif draggingVal then
-                        -- Correct Y position for the bar
                         local relativeY = correctedMouse.Y - valSlider.AbsolutePosition.Y
                         local clampedY = math.clamp(relativeY, 0, valSlider.AbsoluteSize.Y)
-                        
                         valIndicator.Position = dim2(0.5, 0, 0, clampedY)
                         v = 1 - (clampedY / valSlider.AbsoluteSize.Y)
                         update_color()
