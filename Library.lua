@@ -1,35 +1,38 @@
 --[[ 
-    MONOLITH FINGERPAINT LIBRARY
+    MONOLITH FINGERPAINT LIBRARY (V2 - Premium UI Update)
     Designed for: loadstring execution
-    Supports: Nested Elements, Side-by-Side Sections, Custom Fonts
 ]]
 
 local uis = game:GetService("UserInputService") 
-local players = game:GetService("Players") 
 local tween_service = game:GetService("TweenService")
 local coregui = game:GetService("CoreGui")
-local http_service = game:GetService("HttpService")
 
--- Shorthands
+-- Shorthands & Theme Colors
 local dim2 = UDim2.new
 local dim = UDim.new 
 local rgb = Color3.fromRGB
-local vec2 = Vector2.new
+
+local Theme = {
+    MainBG = rgb(15, 15, 15),
+    SidebarBG = rgb(18, 18, 18),
+    TopbarBG = rgb(18, 18, 18),
+    SectionBG = rgb(22, 22, 22),
+    ElementBG = rgb(30, 30, 30),
+    HoverBG = rgb(40, 40, 40),
+    Accent = rgb(100, 150, 255),
+    Text = rgb(240, 240, 240),
+    MutedText = rgb(150, 150, 150),
+    Outline = rgb(45, 45, 45)
+}
 
 -- Library state
 local library = {
-    directory = "MonolithLib",
-    flags = {},
-    config_flags = {},
-    connections = {},
-    -- FIX: Load Finger Paint directly from the Roblox Cloud using its Asset ID!
     font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
 }
-library.__index = library
 
--- Utility
+-- Utility Functions
 function library:tween(obj, props, time) 
-    local t = tween_service:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+    local t = tween_service:Create(obj, TweenInfo.new(time or 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
     t:Play()
     return t
 end
@@ -40,13 +43,11 @@ function library:create(class, props)
     return ins
 end
 
-function library:draggify(frame)
+function library:draggify(frame, drag_area)
     local dragging, startPos, startInput
-    frame.InputBegan:Connect(function(input)
+    (drag_area or frame).InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            startInput = input.Position
-            startPos = frame.Position
+            dragging = true; startInput = input.Position; startPos = frame.Position
         end
     end)
     uis.InputChanged:Connect(function(input)
@@ -62,254 +63,260 @@ end
 
 -- Window System
 function library:window(props)
-    local win = {
-        name = props.name or "Nebula",
-        selected_tab = nil,
-        items = {}
-    }
+    local win = { items = {}, tabs = {} }
 
     local screen = library:create("ScreenGui", {Parent = coregui, Name = "MonolithUI", ResetOnSpawn = false})
     
     local main = library:create("Frame", {
-        Parent = screen,
-        Size = dim2(0, 600, 0, 400),
-        Position = dim2(0.5, -300, 0.5, -200),
-        BackgroundColor3 = rgb(15, 15, 15),
-        BorderSizePixel = 0
+        Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
+        BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
     })
-    library:create("UICorner", {Parent = main, CornerRadius = dim(0, 6)})
-    library:draggify(main)
+    library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
+    library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
     local topbar = library:create("Frame", {
-        Parent = main,
-        Size = dim2(1, 0, 0, 35),
-        BackgroundColor3 = rgb(20, 20, 20),
-        BorderSizePixel = 0
+        Parent = main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0
     })
-    library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 6)})
+    library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 8)})
+    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 10), Position = dim2(0, 0, 1, -10), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0}) -- Hide bottom corner
+    library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0}) -- Separator line
+    library:draggify(main, topbar)
 
-    local title = library:create("TextLabel", {
-        Parent = topbar,
-        Text = "  " .. win.name,
-        Size = dim2(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = rgb(255, 255, 255),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        FontFace = library.font, -- FIX: Must use FontFace when using Font.new()
-        TextSize = 16
+    library:create("TextLabel", {
+        Parent = topbar, Text = "  " .. (props.name or "Nebula UI"), Size = dim2(1, 0, 1, 0), Position = dim2(0, 10, 0, 0),
+        BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 18
     })
 
     local sidebar = library:create("Frame", {
-        Parent = main,
-        Position = dim2(0, 0, 0, 35),
-        Size = dim2(0, 130, 1, -35),
-        BackgroundColor3 = rgb(12, 12, 12),
-        BorderSizePixel = 0
+        Parent = main, Position = dim2(0, 0, 0, 41), Size = dim2(0, 140, 1, -41), BackgroundColor3 = Theme.SidebarBG, BorderSizePixel = 0
     })
+    library:create("Frame", {Parent = sidebar, Size = dim2(0, 1), Position = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
 
     local page_holder = library:create("Frame", {
-        Parent = main,
-        Position = dim2(0, 130, 0, 35),
-        Size = dim2(1, -130, 1, -35),
-        BackgroundColor3 = rgb(10, 10, 10),
-        BorderSizePixel = 0
+        Parent = main, Position = dim2(0, 141, 0, 41), Size = dim2(1, -141, 1, -41), BackgroundTransparency = 1
     })
 
     library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center})
     library:create("UIPadding", {Parent = sidebar, PaddingTop = dim(0, 10)})
 
-    function win:toggle_menu(bool)
-        main.Visible = bool
-    end
+    function win:toggle_menu(bool) main.Visible = bool end
 
     function win:Tab(props)
-        local tab = { items = {} }
+        local tab = { name = props.name or props.Name or "Tab" }
+        
         local btn = library:create("TextButton", {
-            Parent = sidebar,
-            Size = dim2(0, 120, 0, 30),
-            BackgroundColor3 = rgb(25, 25, 25),
-            Text = props.name or "Tab",
-            TextColor3 = rgb(180, 180, 180),
-            FontFace = library.font,
-            TextSize = 14
+            Parent = sidebar, Size = dim2(1, -16, 0, 32), BackgroundColor3 = Theme.MainBG,
+            Text = "  " .. tab.name, TextColor3 = Theme.MutedText, FontFace = library.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false
         })
-        library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 4)})
+        library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)})
+        library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
 
         local page = library:create("ScrollingFrame", {
-            Parent = page_holder,
-            Size = dim2(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            Visible = false,
-            ScrollBarThickness = 2
+            Parent = page_holder, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false,
+            ScrollBarThickness = 2, AutomaticCanvasSize = Enum.AutomaticSize.Y
         })
-        library:create("UIListLayout", {Parent = page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 10)})
-        library:create("UIPadding", {Parent = page, PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10), PaddingTop = dim(0, 10)})
+        library:create("UIListLayout", {Parent = page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 15), SortOrder = Enum.SortOrder.LayoutOrder})
+        library:create("UIPadding", {Parent = page, PaddingLeft = dim(0, 15), PaddingRight = dim(0, 15), PaddingTop = dim(0, 15), PaddingBottom = dim(0, 15)})
+
+        -- Auto-select first tab
+        if #win.tabs == 0 then
+            page.Visible = true; btn.TextColor3 = Theme.Text; btn.BackgroundColor3 = Theme.ElementBG
+        end
+        table.insert(win.tabs, {btn = btn, page = page})
 
         btn.MouseButton1Click:Connect(function()
-            for _, v in pairs(page_holder:GetChildren()) do v.Visible = false end
+            for _, t in pairs(win.tabs) do 
+                t.page.Visible = false
+                t.btn.TextColor3 = Theme.MutedText
+                library:tween(t.btn, {BackgroundColor3 = Theme.MainBG}, 0.15)
+            end
             page.Visible = true
+            btn.TextColor3 = Theme.Text
+            library:tween(btn, {BackgroundColor3 = Theme.ElementBG}, 0.15)
         end)
 
-        -- Section Element Methods
+        -- Section API
         local section_api = {}
         
-        function section_api:Toggle(props)
-            local tog = {
-                enabled = props.default or false,
-                container = nil
-            }
-            local btn = library:create("TextButton", {
-                Parent = self.elements,
-                Size = dim2(1, 0, 0, 25),
-                BackgroundColor3 = rgb(30, 30, 30),
-                Text = "  " .. (props.name or props.Name or "Toggle"),
-                TextColor3 = rgb(200, 200, 200),
-                TextXAlignment = Enum.TextXAlignment.Left,
-                FontFace = library.font,
-                TextSize = 13
+        function section_api:Label(p)
+            local l = library:create("TextLabel", {
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1,
+                Text = p.name or p.Name or "Label", TextColor3 = Theme.MutedText, FontFace = library.font, TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y
             })
-            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 4)})
+            return { instance = l, set = function(txt) l.Text = txt end }
+        end
 
-            -- Hidden container for nested elements
-            local container = library:create("Frame", {
-                Parent = btn,
-                Size = dim2(1, 0, 0, 0),
-                BackgroundTransparency = 1,
-                Visible = false
+        function section_api:Button(p)
+            local b = library:create("TextButton", {
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG,
+                Text = " " .. (p.name or p.Name or "Button"), TextColor3 = Theme.Text, FontFace = library.font, TextSize = 13, AutoButtonColor = false
             })
-            library:create("UIListLayout", {Parent = container})
-            tog.container = container
+            library:create("UICorner", {Parent = b, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = b, Color = Theme.Outline, Thickness = 1})
+            
+            b.MouseButton1Click:Connect(function()
+                library:tween(b, {BackgroundColor3 = Theme.HoverBG}, 0.1)
+                task.wait(0.1); library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1)
+                if p.Callback then p.Callback() end
+            end)
+        end
+
+        function section_api:Toggle(p)
+            local tog = { enabled = p.default or false }
+            local btn = library:create("TextButton", {
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG,
+                Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false
+            })
+            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
+
+            local indicator = library:create("Frame", {
+                Parent = btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG
+            })
+            library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)})
+            library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
+
+            local container = library:create("Frame", {
+                Parent = btn, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y
+            })
+            library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)})
+            library:create("UIPadding", {Parent = container, PaddingTop = dim(0, 38), PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10), PaddingBottom = dim(0, 10)})
+
+            local function Update()
+                container.Visible = tog.enabled
+                btn.AutomaticSize = tog.enabled and Enum.AutomaticSize.Y or Enum.AutomaticSize.None
+                btn.Size = tog.enabled and dim2(1, 0, 0, 0) or dim2(1, 0, 0, 32)
+                library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
+            end
 
             btn.MouseButton1Click:Connect(function()
-                tog.enabled = not tog.enabled
-                container.Visible = tog.enabled
-                library:tween(btn, {BackgroundColor3 = tog.enabled and rgb(50, 50, 50) or rgb(30, 30, 30)})
-                if props.Callback then props.Callback(tog.enabled) end
+                tog.enabled = not tog.enabled; Update()
+                if p.Callback then p.Callback(tog.enabled) end
             end)
+            Update()
 
-            function tog:Slider(p) p = p or {}; p.Parent = container; return section_api:Slider(p) end
-            function tog:Dropdown(p) p = p or {}; p.Parent = container; return section_api:Dropdown(p) end
-            function tog:Colorpicker(p) p = p or {}; p.Parent = container; return section_api:Colorpicker(p) end
-            function tog:Keybind(p) p = p or {}; p.Parent = container; return section_api:Keybind(p) end
+            function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
+            function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
+            function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
+            function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
 
             return tog
         end
 
         function section_api:Slider(p)
+            local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
             local s = library:create("Frame", {
-                Parent = p.Parent or self.elements,
-                Size = dim2(1, 0, 0, 30),
-                BackgroundColor3 = rgb(35, 35, 35)
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG
             })
-            library:create("UICorner", {Parent = s})
-            library:create("TextLabel", {
-                Parent = s,
-                Text = " " .. (p.Name or p.name or "Slider"),
-                Size = dim2(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                TextColor3 = rgb(200, 200, 200),
-                FontFace = library.font,
-                TextSize = 12
+            library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
+            
+            local lbl = library:create("TextLabel", {
+                Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1,
+                TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13
             })
+            local val_lbl = library:create("TextLabel", {
+                Parent = s, Text = tostring(default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1,
+                TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13
+            })
+
+            local bar_bg = library:create("Frame", {
+                Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG
+            })
+            library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
+            
+            local fill = library:create("Frame", {
+                Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent
+            })
+            library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
+
+            local dragging = false
+            local function update_slider()
+                local mouse_x = uis:GetMouseLocation().X
+                local percent = math.clamp((mouse_x - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
+                local value = math.floor(min + ((max - min) * percent))
+                fill.Size = dim2(percent, 0, 1, 0); val_lbl.Text = tostring(value)
+                if p.Callback then p.Callback(value) end
+            end
+
+            bar_bg.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; update_slider() end end)
+            uis.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+            uis.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then update_slider() end end)
+
             return {}
+        end
+
+        function section_api:Textbox(p)
+            local bg = library:create("Frame", {
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG
+            })
+            library:create("UICorner", {Parent = bg, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = bg, Color = Theme.Outline, Thickness = 1})
+
+            local box = library:create("TextBox", {
+                Parent = bg, Size = dim2(1, -16, 1, 0), Position = dim2(0, 8, 0, 0), BackgroundTransparency = 1,
+                Text = "", PlaceholderText = p.placeholder or p.Placeholder or (p.name or "Textbox"), TextColor3 = Theme.Text, 
+                PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left
+            })
+            
+            box.FocusLost:Connect(function()
+                if p.Callback then p.Callback(box.Text) end
+            end)
         end
 
         function section_api:Dropdown(p)
             local d = library:create("TextButton", {
-                Parent = p.Parent or self.elements,
-                Size = dim2(1, 0, 0, 25),
-                BackgroundColor3 = rgb(35, 35, 35),
-                Text = " " .. (p.Name or p.name or "Dropdown"),
-                TextColor3 = rgb(200, 200, 200),
-                FontFace = library.font,
-                TextSize = 12
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG,
+                Text = "  " .. (p.Name or p.name or "Dropdown") .. "  ▼", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false
             })
-            library:create("UICorner", {Parent = d})
+            library:create("UICorner", {Parent = d, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = d, Color = Theme.Outline, Thickness = 1})
             return {}
         end
 
-        function section_api:Button(p)
-            local b = library:create("TextButton", {
-                Parent = p.Parent or self.elements,
-                Size = dim2(1, 0, 0, 25),
-                BackgroundColor3 = rgb(40, 40, 40),
-                Text = " " .. (p.Name or p.name or "Button"),
-                TextColor3 = rgb(255, 255, 255),
-                FontFace = library.font,
-                TextSize = 12
-            })
-            library:create("UICorner", {Parent = b})
-            b.MouseButton1Click:Connect(function() if p.Callback then p.Callback() end end)
-        end
-
-        function section_api:Textbox(p)
-            local t = library:create("TextBox", {
-                Parent = p.Parent or self.elements,
-                Size = dim2(1, 0, 0, 25),
-                BackgroundColor3 = rgb(20, 20, 20),
-                TextColor3 = rgb(255, 255, 255),
-                FontFace = library.font,
-                Text = "",
-                PlaceholderText = p.Placeholder or p.placeholder or "Type...",
-                TextXAlignment = Enum.TextXAlignment.Left
-            })
-            library:create("UICorner", {Parent = t})
-        end
-
         function section_api:Colorpicker(p)
-            local c = library:create("Frame", {
-                Parent = p.Parent or self.elements,
-                Size = dim2(1, 0, 0, 25),
-                BackgroundColor3 = rgb(35, 35, 35)
+            local c = library:create("TextButton", {
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG,
+                Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false
             })
-            library:create("UICorner", {Parent = c})
-            library:create("TextLabel", {
-                Parent = c,
-                Text = " " .. (p.Name or p.name or "Color"),
-                Size = dim2(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                TextColor3 = rgb(200, 200, 200),
-                FontFace = library.font,
-                TextSize = 12
+            library:create("UICorner", {Parent = c, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = c, Color = Theme.Outline, Thickness = 1})
+            local disp = library:create("Frame", {
+                Parent = c, Size = dim2(0, 20, 0, 16), Position = dim2(1, -28, 0.5, -8), BackgroundColor3 = rgb(255, 0, 0)
             })
+            library:create("UICorner", {Parent = disp, CornerRadius = dim(0, 4)})
+            return {}
         end
 
         function section_api:Keybind(p)
             local k = library:create("TextButton", {
-                Parent = p.Parent or self.elements,
-                Size = dim2(1, 0, 0, 25),
-                BackgroundColor3 = rgb(35, 35, 35),
-                Text = " " .. (p.Name or p.name or "Keybind") .. " [NONE]",
-                TextColor3 = rgb(200, 200, 200),
-                FontFace = library.font,
-                TextSize = 12
+                Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG,
+                Text = "  " .. (p.Name or p.name or "Keybind") .. " : [NONE]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false
             })
-            library:create("UICorner", {Parent = k})
+            library:create("UICorner", {Parent = k, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = k, Color = Theme.Outline, Thickness = 1})
+            return {}
         end
 
-        -- Wrap Section Logic
+        -- Create Section
         function tab:Section(props)
             local s = {}
             s.elements = library:create("Frame", {
-                Parent = page,
-                Size = dim2(0, 250, 1, -20),
-                BackgroundTransparency = 1
+                Parent = page, Size = dim2(0.5, -8, 0, 0), BackgroundColor3 = Theme.SectionBG, AutomaticSize = Enum.AutomaticSize.Y
             })
-            library:create("UIListLayout", {Parent = s.elements, Padding = dim(0, 5)})
-            library:create("TextLabel", {
-                Parent = s.elements,
-                Text = props.name or "Section",
-                Size = dim2(1, 0, 0, 20),
-                BackgroundTransparency = 1,
-                TextColor3 = rgb(150, 150, 150),
-                FontFace = library.font,
-                TextSize = 12
-            })
+            library:create("UICorner", {Parent = s.elements, CornerRadius = dim(0, 8)})
+            library:create("UIStroke", {Parent = s.elements, Color = Theme.Outline, Thickness = 1})
+            library:create("UIListLayout", {Parent = s.elements, Padding = dim(0, 8)})
+            library:create("UIPadding", {Parent = s.elements, PaddingTop = dim(0, 10), PaddingBottom = dim(0, 10), PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10)})
             
-            -- Inject API into the section object
-            setmetatable(s, {
-                __index = section_api
+            library:create("TextLabel", {
+                Parent = s.elements, Text = props.name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1,
+                TextColor3 = Theme.Accent, FontFace = library.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center
             })
+            library:create("Frame", {Parent = s.elements, Size = dim2(1, 0, 0, 1), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
+            
+            setmetatable(s, { __index = section_api })
             return s
         end
 
@@ -321,9 +328,9 @@ end
 
 -- Config System
 function library:init_config(win)
-    local configTab = win:Tab({name = "Configs"})
-    local sec = configTab:Section({name = "Settings"})
-    sec:Button({Callback = function() print("Config Saved") end})
+    local configTab = win:Tab({name = "Settings"})
+    local sec = configTab:Section({name = "Configuration"})
+    sec:Button({name = "Save Config", Callback = function() print("Config Saved") end})
 end
 
 -- Notification System
