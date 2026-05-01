@@ -128,10 +128,11 @@ local function PremiumOverlay(parent)
 end
 
 -- LOADING ANIMATION LOGIC
-local function BootSequence(windowName)
-    local loadingGui = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithLoading"})
+-- Added 'windowFrame' as an argument
+local function BootSequence(windowFrame, windowName)
+    -- We no longer create a ScreenGui, we just create a frame inside the window
     local main = library:create("Frame", {
-        Parent = loadingGui, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), ZIndex = 1000
+        Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), ZIndex = 1000
     })
     
     local logo = library:create("TextLabel", {
@@ -176,23 +177,24 @@ local function BootSequence(windowName)
     task.wait(0.5)
     
     local fadeOut = library:tween(main, {BackgroundTransparency = 1}, 1)
-    fadeOut.Completed:Connect(function() loadingGui:Destroy() end)
+    fadeOut.Completed:Connect(function() main:Destroy() end)
     task.wait(1)
 end
 
 -- Window System
 function library:window(props)
-    -- Start loading animation if requested
-    if props.Loading then
-        BootSequence(props.name or "Nebula UI")
-    end
-
     local win = { items = {}, tabs = {} }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
     
     local main = library:create("Frame", {
-        Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225), BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
+        Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
+        BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
     })
+
+    -- MOVE THE ANIMATION HERE (After 'main' is created)
+    if props.Loading then
+        BootSequence(main, props.name or "Nebula UI")
+    end
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
