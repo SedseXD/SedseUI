@@ -22,21 +22,10 @@ local library = {
     flags = {},
     config_flags = {},
     connections = {},
-    font = Enum.Font.FingerPaint,
+    -- FIX: Load Finger Paint directly from the Roblox Cloud using its Asset ID!
+    font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
 }
 library.__index = library
-
--- Custom Font Loader
-if writefile and makefolder and getcustomasset then
-    makefolder(library.directory .. "/fonts")
-    local font_path = library.directory .. "/fonts/main.ttf"
-    if not isfile(font_path) then
-        writefile(font_path, game:HttpGet("https://github.com/f1nobe7650/Nebula/raw/refs/heads/main/Minecraftia-Regular.ttf"))
-    end
-    pcall(function()
-        library.font = Font.new(getcustomasset(font_path))
-    end)
-end
 
 -- Utility
 function library:tween(obj, props, time) 
@@ -106,7 +95,7 @@ function library:window(props)
         BackgroundTransparency = 1,
         TextColor3 = rgb(255, 255, 255),
         TextXAlignment = Enum.TextXAlignment.Left,
-        Font = library.font,
+        FontFace = library.font, -- FIX: Must use FontFace when using Font.new()
         TextSize = 16
     })
 
@@ -141,7 +130,7 @@ function library:window(props)
             BackgroundColor3 = rgb(25, 25, 25),
             Text = props.name or "Tab",
             TextColor3 = rgb(180, 180, 180),
-            Font = library.font,
+            FontFace = library.font,
             TextSize = 14
         })
         library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 4)})
@@ -176,7 +165,7 @@ function library:window(props)
                 Text = "  " .. (props.name or props.Name or "Toggle"),
                 TextColor3 = rgb(200, 200, 200),
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 13
             })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 4)})
@@ -198,7 +187,6 @@ function library:window(props)
                 if props.Callback then props.Callback(tog.enabled) end
             end)
 
-            -- THE FIX: Properly pass 'p' in Lua instead of using JS '...p'
             function tog:Slider(p) p = p or {}; p.Parent = container; return section_api:Slider(p) end
             function tog:Dropdown(p) p = p or {}; p.Parent = container; return section_api:Dropdown(p) end
             function tog:Colorpicker(p) p = p or {}; p.Parent = container; return section_api:Colorpicker(p) end
@@ -220,7 +208,7 @@ function library:window(props)
                 Size = dim2(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 TextColor3 = rgb(200, 200, 200),
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 12
             })
             return {}
@@ -233,7 +221,7 @@ function library:window(props)
                 BackgroundColor3 = rgb(35, 35, 35),
                 Text = " " .. (p.Name or p.name or "Dropdown"),
                 TextColor3 = rgb(200, 200, 200),
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 12
             })
             library:create("UICorner", {Parent = d})
@@ -247,7 +235,7 @@ function library:window(props)
                 BackgroundColor3 = rgb(40, 40, 40),
                 Text = " " .. (p.Name or p.name or "Button"),
                 TextColor3 = rgb(255, 255, 255),
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 12
             })
             library:create("UICorner", {Parent = b})
@@ -260,7 +248,7 @@ function library:window(props)
                 Size = dim2(1, 0, 0, 25),
                 BackgroundColor3 = rgb(20, 20, 20),
                 TextColor3 = rgb(255, 255, 255),
-                Font = library.font,
+                FontFace = library.font,
                 Text = "",
                 PlaceholderText = p.Placeholder or p.placeholder or "Type...",
                 TextXAlignment = Enum.TextXAlignment.Left
@@ -281,7 +269,7 @@ function library:window(props)
                 Size = dim2(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 TextColor3 = rgb(200, 200, 200),
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 12
             })
         end
@@ -293,7 +281,7 @@ function library:window(props)
                 BackgroundColor3 = rgb(35, 35, 35),
                 Text = " " .. (p.Name or p.name or "Keybind") .. " [NONE]",
                 TextColor3 = rgb(200, 200, 200),
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 12
             })
             library:create("UICorner", {Parent = k})
@@ -314,7 +302,7 @@ function library:window(props)
                 Size = dim2(1, 0, 0, 20),
                 BackgroundTransparency = 1,
                 TextColor3 = rgb(150, 150, 150),
-                Font = library.font,
+                FontFace = library.font,
                 TextSize = 12
             })
             
