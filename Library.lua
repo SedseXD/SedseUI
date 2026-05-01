@@ -1,5 +1,5 @@
 --[[ 
-    MONOLITH FINGERPAINT LIBRARY (V7 - Advanced Color Wheel Update)
+    MONOLITH FINGERPAINT LIBRARY (V8 - Boot Animation Update)
     Designed for: loadstring execution
 ]]
 
@@ -61,10 +61,8 @@ local function get_icon(iconName, color)
         img.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
         return img
     end
-
     local holder = Instance.new("Frame")
     holder.BackgroundTransparency = 1
-    
     task.spawn(function()
         local waited = 0
         while not Icons and waited < 5 do task.wait(0.1); waited = waited + 0.1 end
@@ -129,8 +127,66 @@ local function PremiumOverlay(parent)
     library:create("TextButton", { Parent = overlay, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 12 })
 end
 
+-- LOADING ANIMATION LOGIC
+local function BootSequence(windowName)
+    local loadingGui = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithLoading"})
+    local main = library:create("Frame", {
+        Parent = loadingGui, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), ZIndex = 1000
+    })
+    
+    local logo = library:create("TextLabel", {
+        Parent = main, Text = windowName, Position = dim2(0.5, 0, 0.4, 0), AnchorPoint = Vector2.new(0.5, 0.5),
+        Size = dim2(0, 200, 0, 50), BackgroundTransparency = 1, TextColor3 = Theme.Text,
+        FontFace = library.font, TextSize = 32, TextTransparency = 1
+    })
+    
+    local barBg = library:create("Frame", {
+        Parent = main, Size = dim2(0, 200, 0, 4), Position = dim2(0.5, 0, 0.6, 0), AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Theme.Outline, BorderSizePixel = 0
+    })
+    library:create("UICorner", {Parent = barBg})
+    
+    local barFill = library:create("Frame", {
+        Parent = barBg, Size = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Accent, BorderSizePixel = 0
+    })
+    library:create("UICorner", {Parent = barFill})
+
+    local status = library:create("TextLabel", {
+        Parent = main, Text = "Initializing...", Position = dim2(0.5, 0, 0.65, 0), AnchorPoint = Vector2.new(0.5, 0.5),
+        Size = dim2(0, 200, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.MutedText,
+        FontFace = library.font, TextSize = 14, TextTransparency = 1
+    })
+
+    -- Animation Sequence
+    library:tween(logo, {TextTransparency = 0}, 1)
+    task.wait(0.5)
+    library:tween(status, {TextTransparency = 0}, 0.5)
+    
+    local steps = {"Loading Core...", "Fetching Assets...", "Applying Theme...", "Finalizing..."}
+    for i, step in ipairs(steps) do
+        status.Text = step
+        library:tween(barFill, {Size = dim2(i/ #steps, 0, 1, 0)}, 0.5)
+        task.wait(0.6)
+    end
+    
+    library:tween(logo, {TextTransparency = 1}, 0.5)
+    library:tween(status, {TextTransparency = 1}, 0.5)
+    library:tween(barFill, {BackgroundTransparency = 1}, 0.3)
+    library:tween(barBg, {BackgroundTransparency = 1}, 0.3)
+    task.wait(0.5)
+    
+    local fadeOut = library:tween(main, {BackgroundTransparency = 1}, 1)
+    fadeOut.Completed:Connect(function() loadingGui:Destroy() end)
+    task.wait(1)
+end
+
 -- Window System
 function library:window(props)
+    -- Start loading animation if requested
+    if props.Loading then
+        BootSequence(props.name or "Nebula UI")
+    end
+
     local win = { items = {}, tabs = {} }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
     
@@ -357,37 +413,24 @@ function library:window(props)
             local open = false
             local color = p.default or rgb(255, 0, 0)
             local h, s, v = color:ToHSV()
-
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
-
-            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
+            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
-
             local disp = library:create("Frame", { Parent = btn, Size = dim2(0, 20, 0, 16), Position = dim2(1, -28, 0.5, -8), BackgroundColor3 = color })
             library:create("UICorner", {Parent = disp, CornerRadius = dim(0, 4)})
-
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 130), BackgroundTransparency = 1, Visible = false })
             local wheelBg = library:create("Frame", {Parent = container, Size = dim2(1, 0, 1, 0), BackgroundColor3 = Theme.SectionBG})
             library:create("UICorner", {Parent = wheelBg, CornerRadius = dim(0, 6)})
-
-            local wheel = library:create("ImageButton", {
-                Parent = wheelBg, Size = dim2(0, 100, 0, 100), Position = dim2(0, 10, 0, 10), BackgroundTransparency = 1, Image = "rbxassetid://6020299385"
-            })
-            local pickerDot = library:create("ImageLabel", {
-                Parent = wheel, Size = dim2(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Image = "rbxassetid://3678860011"
-            })
-
-            local valSlider = library:create("TextButton", {
-                Parent = wheelBg, Size = dim2(0, 15, 0, 100), Position = dim2(0, 120, 0, 10), BackgroundColor3 = rgb(255, 255, 255), Text = "", AutoButtonColor = false
-            })
+            local wheel = library:create("ImageButton", { Parent = wheelBg, Size = dim2(0, 100, 0, 100), Position = dim2(0, 10, 0, 10), BackgroundTransparency = 1, Image = "rbxassetid://6020299385" })
+            local pickerDot = library:create("ImageLabel", { Parent = wheel, Size = dim2(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Image = "rbxassetid://3678860011" })
+            local valSlider = library:create("TextButton", { Parent = wheelBg, Size = dim2(0, 15, 0, 100), Position = dim2(0, 120, 0, 10), BackgroundColor3 = rgb(255, 255, 255), Text = "", AutoButtonColor = false })
             library:create("UICorner", {Parent = valSlider, CornerRadius = dim(0, 4)})
             local valGrad = library:create("UIGradient", { Parent = valSlider, Rotation = 90, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromHSV(h,s,1)), ColorSequenceKeypoint.new(1, rgb(0,0,0))} })
             local valIndicator = library:create("Frame", { Parent = valSlider, Size = dim2(1, 4, 0, 4), Position = dim2(0.5, 0, 1-v, 0), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Theme.Text, BorderSizePixel = 0 })
 
             btn.MouseButton1Click:Connect(function() open = not open; container.Visible = open end)
-
             local function update_color()
                 local finalColor = Color3.fromHSV(h, s, v)
                 disp.BackgroundColor3 = finalColor
@@ -395,47 +438,34 @@ function library:window(props)
                 if p.Callback then p.Callback(finalColor) end
             end
 
-            -- Correct Initial Dot Position
             local angle = (h * math.pi * 2) - (math.pi / 2)
             pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
 
             local draggingWheel, draggingVal = false, false
             local inset = gui_service:GetGuiInset()
-
             wheel.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = true end end)
             valSlider.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingVal = true end end)
             uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = false; draggingVal = false end end)
-
             uis.InputChanged:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
                     local mLoc = uis:GetMouseLocation()
                     local correctedMouse = Vector2.new(mLoc.X, mLoc.Y - inset.Y)
-                    
                     if draggingWheel then
                         local wheelCenter = wheel.AbsolutePosition + (wheel.AbsoluteSize / 2)
                         local offset = correctedMouse - wheelCenter
                         local rad = wheel.AbsoluteSize.X / 2
                         if offset.Magnitude > rad then offset = offset.Unit * rad end
-                        
                         pickerDot.Position = dim2(0.5 + (offset.X / wheel.AbsoluteSize.X), 0, 0.5 + (offset.Y / wheel.AbsoluteSize.Y), 0)
-                        
-                        -- FIXED MATH: Use -offset.Y to account for Roblox UI coordinate system
                         local angle = math.atan2(-offset.Y, offset.X)
                         h = (angle / (math.pi * 2)) + 0.5
-                        h = h % 1 -- Keep hue between 0 and 1
-                        s = offset.Magnitude / rad
-                        update_color()
-                        
+                        h = h % 1; s = offset.Magnitude / rad; update_color()
                     elseif draggingVal then
                         local relativeY = correctedMouse.Y - valSlider.AbsolutePosition.Y
                         local clampedY = math.clamp(relativeY, 0, valSlider.AbsoluteSize.Y)
-                        valIndicator.Position = dim2(0.5, 0, 0, clampedY)
-                        v = 1 - (clampedY / valSlider.AbsoluteSize.Y)
-                        update_color()
+                        valIndicator.Position = dim2(0.5, 0, 0, clampedY); v = 1 - (clampedY / valSlider.AbsoluteSize.Y); update_color()
                     end
                 end
             end)
-
             return {}
         end
 
@@ -444,7 +474,6 @@ function library:window(props)
             local btn = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
-
             local picking = false
             btn.MouseButton1Click:Connect(function() picking = true; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [...]" end)
             uis.InputBegan:Connect(function(input, gpe)
@@ -495,14 +524,11 @@ function library:window(props)
         function tab:Section(props)
             local s = {}
             local parent_col = (string.lower(props.side or "left") == "right") and right_col or left_col
-
             s.elements = library:create("Frame", { Parent = parent_col, Size = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.SectionBG, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UICorner", {Parent = s.elements, CornerRadius = dim(0, 8)}); library:create("UIStroke", {Parent = s.elements, Color = Theme.Outline, Thickness = 1})
             library:create("UIListLayout", {Parent = s.elements, Padding = dim(0, 8)}); library:create("UIPadding", {Parent = s.elements, PaddingTop = dim(0, 10), PaddingBottom = dim(0, 10), PaddingLeft = dim(0, 10), PaddingRight = dim(0, 10)})
-            
             library:create("TextLabel", { Parent = s.elements, Text = props.name or props.Name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.Accent, FontFace = library.font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Center })
             library:create("Frame", {Parent = s.elements, Size = dim2(1, 0, 0, 1), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
-            
             setmetatable(s, { __index = section_api })
             return s
         end
