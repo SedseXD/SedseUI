@@ -161,36 +161,9 @@ function library:window(props)
             page.Visible = true
         end)
 
-        function tab:Section(props)
-            local sec = { items = {} }
-            local side_frame = library:create("Frame", {
-                Parent = page,
-                Size = dim2(0, 250, 1, -20),
-                BackgroundTransparency = 1
-            })
-            library:create("UIListLayout", {Parent = side_frame, Padding = dim(0, 5)})
-            
-            local label = library:create("TextLabel", {
-                Parent = side_frame,
-                Text = props.name or "Section",
-                Size = dim2(1, 0, 0, 20),
-                BackgroundTransparency = 1,
-                TextColor3 = rgb(150, 150, 150),
-                Font = library.font,
-                TextSize = 12
-            })
-
-            sec.elements = side_frame
-            return sec
-        end
-
         -- Section Element Methods
-        function tab:Section(props) 
-            -- (Handled by the loop below for brevity, but defined here for the API)
-        end
-        
-        -- Re-mapping for the User's script style
         local section_api = {}
+        
         function section_api:Toggle(props)
             local tog = {
                 enabled = props.default or false,
@@ -200,7 +173,7 @@ function library:window(props)
                 Parent = self.elements,
                 Size = dim2(1, 0, 0, 25),
                 BackgroundColor3 = rgb(30, 30, 30),
-                Text = "  " .. (props.name or "Toggle"),
+                Text = "  " .. (props.name or props.Name or "Toggle"),
                 TextColor3 = rgb(200, 200, 200),
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Font = library.font,
@@ -208,7 +181,7 @@ function library:window(props)
             })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 4)})
 
-            -- Hidden container for nested elements (Slider, Dropdown etc)
+            -- Hidden container for nested elements
             local container = library:create("Frame", {
                 Parent = btn,
                 Size = dim2(1, 0, 0, 0),
@@ -225,11 +198,11 @@ function library:window(props)
                 if props.Callback then props.Callback(tog.enabled) end
             end)
 
-            -- THE SECRET: Nested Element Methods
-            function tog:Slider(p) return section_api:Slider({Parent = container, ...p}) end
-            function tog:Dropdown(p) return section_api:Dropdown({Parent = container, ...p}) end
-            function tog:Colorpicker(p) return section_api:Colorpicker({Parent = container, ...p}) end
-            function tog:Keybind(p) return section_api:Keybind({Parent = container, ...p}) end
+            -- THE FIX: Properly pass 'p' in Lua instead of using JS '...p'
+            function tog:Slider(p) p = p or {}; p.Parent = container; return section_api:Slider(p) end
+            function tog:Dropdown(p) p = p or {}; p.Parent = container; return section_api:Dropdown(p) end
+            function tog:Colorpicker(p) p = p or {}; p.Parent = container; return section_api:Colorpicker(p) end
+            function tog:Keybind(p) p = p or {}; p.Parent = container; return section_api:Keybind(p) end
 
             return tog
         end
@@ -243,7 +216,7 @@ function library:window(props)
             library:create("UICorner", {Parent = s})
             library:create("TextLabel", {
                 Parent = s,
-                Text = " " .. (p.Name or "Slider"),
+                Text = " " .. (p.Name or p.name or "Slider"),
                 Size = dim2(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 TextColor3 = rgb(200, 200, 200),
@@ -258,7 +231,7 @@ function library:window(props)
                 Parent = p.Parent or self.elements,
                 Size = dim2(1, 0, 0, 25),
                 BackgroundColor3 = rgb(35, 35, 35),
-                Text = " " .. (p.Name or "Dropdown"),
+                Text = " " .. (p.Name or p.name or "Dropdown"),
                 TextColor3 = rgb(200, 200, 200),
                 Font = library.font,
                 TextSize = 12
@@ -272,7 +245,7 @@ function library:window(props)
                 Parent = p.Parent or self.elements,
                 Size = dim2(1, 0, 0, 25),
                 BackgroundColor3 = rgb(40, 40, 40),
-                Text = "Button",
+                Text = " " .. (p.Name or p.name or "Button"),
                 TextColor3 = rgb(255, 255, 255),
                 Font = library.font,
                 TextSize = 12
@@ -289,7 +262,7 @@ function library:window(props)
                 TextColor3 = rgb(255, 255, 255),
                 Font = library.font,
                 Text = "",
-                PlaceholderText = "Type...",
+                PlaceholderText = p.Placeholder or p.placeholder or "Type...",
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             library:create("UICorner", {Parent = t})
@@ -304,7 +277,7 @@ function library:window(props)
             library:create("UICorner", {Parent = c})
             library:create("TextLabel", {
                 Parent = c,
-                Text = " " .. (p.Name or "Color"),
+                Text = " " .. (p.Name or p.name or "Color"),
                 Size = dim2(1, 0, 1, 0),
                 BackgroundTransparency = 1,
                 TextColor3 = rgb(200, 200, 200),
@@ -318,7 +291,7 @@ function library:window(props)
                 Parent = p.Parent or self.elements,
                 Size = dim2(1, 0, 0, 25),
                 BackgroundColor3 = rgb(35, 35, 35),
-                Text = " " .. (p.Name or "Keybind") .. " [NONE]",
+                Text = " " .. (p.Name or p.name or "Keybind") .. " [NONE]",
                 TextColor3 = rgb(200, 200, 200),
                 Font = library.font,
                 TextSize = 12
@@ -328,11 +301,12 @@ function library:window(props)
 
         -- Wrap Section Logic
         function tab:Section(props)
-            local s = { elements = library:create("Frame", {
+            local s = {}
+            s.elements = library:create("Frame", {
                 Parent = page,
                 Size = dim2(0, 250, 1, -20),
                 BackgroundTransparency = 1
-            })}
+            })
             library:create("UIListLayout", {Parent = s.elements, Padding = dim(0, 5)})
             library:create("TextLabel", {
                 Parent = s.elements,
