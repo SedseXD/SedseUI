@@ -1,5 +1,5 @@
 --[[ 
-    MONOLITH FINGERPAINT LIBRARY (V8 - Boot Animation Update)
+    MONOLITH FINGERPAINT LIBRARY (V9 - Final Optimized Build)
     Designed for: loadstring execution
 ]]
 
@@ -19,22 +19,6 @@ end
 
 local ui_parent = get_ui_parent()
 
--- Notification Container Setup
-local notif_screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithNotifs"})
-local notif_container = library:create("Frame", {
-    Parent = notif_screen, 
-    Size = dim2(0, 300, 1, 0), 
-    Position = dim2(1, -310, 0, 0), 
-    BackgroundTransparency = 1
-})
-library:create("UIListLayout", {
-    Parent = notif_container, 
-    Padding = dim(0, 10), 
-    VerticalAlignment = Enum.VerticalAlignment.Bottom, 
-    HorizontalAlignment = Enum.HorizontalAlignment.Right
-})
-library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
-
 -- Shorthands & Theme
 local dim2 = UDim2.new
 local dim = UDim.new 
@@ -53,10 +37,58 @@ local Theme = {
     Outline = rgb(45, 45, 45)
 }
 
--- Library state
+-- Library state (MUST BE DEFINED BEFORE UTILITIES)
 local library = {
     font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 }
+library.__index = library
+
+-- Utility Functions
+function library:tween(obj, props, time) 
+    local t = tween_service:Create(obj, TweenInfo.new(time or 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
+end
+
+function library:create(class, props)
+    local ins = Instance.new(class)
+    for k, v in pairs(props) do ins[k] = v end
+    return ins
+end
+
+function library:draggify(frame, drag_area)
+    local dragging, startPos, startInput
+    (drag_area or frame).InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; startInput = input.Position; startPos = frame.Position
+        end
+    end)
+    uis.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - startInput
+            frame.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    uis.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+end
+
+-- Notification Container Setup (Now placed AFTER library:create)
+local notif_screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithNotifs"})
+local notif_container = library:create("Frame", {
+    Parent = notif_screen, 
+    Size = dim2(0, 300, 1, 0), 
+    Position = dim2(1, -310, 0, 0), 
+    BackgroundTransparency = 1
+})
+library:create("UIListLayout", {
+    Parent = notif_container, 
+    Padding = dim(0, 10), 
+    VerticalAlignment = Enum.VerticalAlignment.Bottom, 
+    HorizontalAlignment = Enum.HorizontalAlignment.Right
+})
+library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
 
 -- Safe Lazy-Load Lucide Icons
 local Icons
@@ -104,37 +136,6 @@ local function color_icon(iconInstance, color)
     end
 end
 
--- Utility
-function library:tween(obj, props, time) 
-    local t = tween_service:Create(obj, TweenInfo.new(time or 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
-    t:Play()
-    return t
-end
-
-function library:create(class, props)
-    local ins = Instance.new(class)
-    for k, v in pairs(props) do ins[k] = v end
-    return ins
-end
-
-function library:draggify(frame, drag_area)
-    local dragging, startPos, startInput
-    (drag_area or frame).InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; startInput = input.Position; startPos = frame.Position
-        end
-    end)
-    uis.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - startInput
-            frame.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    uis.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-    end)
-end
-
 local function PremiumOverlay(parent)
     local overlay = library:create("Frame", { Parent = parent, Size = dim2(1, 0, 1, 0), BackgroundColor3 = Theme.MainBG, BackgroundTransparency = 0.3, ZIndex = 10 })
     library:create("UICorner", {Parent = overlay, CornerRadius = dim(0, 6)})
@@ -145,55 +146,45 @@ end
 
 -- LOADING ANIMATION LOGIC
 local function BootSequence(windowFrame, windowName)
-    -- Create overlay frame that covers the window
     local main = library:create("Frame", {
         Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), 
         ZIndex = 1000, BorderSizePixel = 0
     })
-    
     local logo = library:create("TextLabel", {
         Parent = main, Text = windowName, Position = dim2(0.5, 0, 0.4, 0), AnchorPoint = Vector2.new(0.5, 0.5),
         Size = dim2(0, 200, 0, 50), BackgroundTransparency = 1, TextColor3 = Theme.Text,
         FontFace = library.font, TextSize = 32, TextTransparency = 1, ZIndex = 1001
     })
-    
     local barBg = library:create("Frame", {
         Parent = main, Size = dim2(0, 200, 0, 4), Position = dim2(0.5, 0, 0.6, 0), AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = Theme.Outline, BorderSizePixel = 0, ZIndex = 1001
     })
     library:create("UICorner", {Parent = barBg})
-    
     local barFill = library:create("Frame", {
         Parent = barBg, Size = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 1002
     })
     library:create("UICorner", {Parent = barFill})
-
     local status = library:create("TextLabel", {
         Parent = main, Text = "Initializing...", Position = dim2(0.5, 0, 0.65, 0), AnchorPoint = Vector2.new(0.5, 0.5),
         Size = dim2(0, 200, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.MutedText,
         FontFace = library.font, TextSize = 14, TextTransparency = 1, ZIndex = 1001
     })
 
-    -- Return a coroutine that yields properly
     return coroutine.wrap(function()
-        -- Animation Sequence
         library:tween(logo, {TextTransparency = 0}, 1)
         task.wait(0.5)
         library:tween(status, {TextTransparency = 0}, 0.5)
-        
         local steps = {"Loading Core...", "Fetching Assets...", "Applying Theme...", "Finalizing..."}
         for i, step in ipairs(steps) do
             status.Text = step
             library:tween(barFill, {Size = dim2(i/ #steps, 0, 1, 0)}, 0.5)
             task.wait(0.6)
         end
-        
         library:tween(logo, {TextTransparency = 1}, 0.5)
         library:tween(status, {TextTransparency = 1}, 0.5)
         library:tween(barFill, {BackgroundTransparency = 1}, 0.3)
         library:tween(barBg, {BackgroundTransparency = 1}, 0.3)
         task.wait(0.5)
-        
         local fadeOut = library:tween(main, {BackgroundTransparency = 1}, 1)
         fadeOut.Completed:Connect(function() main:Destroy() end)
         task.wait(1)
@@ -204,7 +195,6 @@ end
 function library:window(props)
     local win = { items = {}, tabs = {} }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
-    
     local main = library:create("Frame", {
         Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
         BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
@@ -274,10 +264,9 @@ function library:window(props)
     end
     uis.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.RightControl then win.toggle_menu() end end)
 
-    -- RUN BOOT ANIMATION IF ENABLED (moved to end, runs as coroutine)
     if props.Loading then
         local bootCoroutine = BootSequence(main, props.name or "Nebula UI")
-        bootCoroutine() -- Execute the animation coroutine
+        bootCoroutine()
     end
 
     function win:Tab(props)
@@ -313,12 +302,10 @@ function library:window(props)
         end)
 
         local section_api = {}
-        
         function section_api:Label(p)
             local l = library:create("TextLabel", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1, Text = p.name or p.Name or "Label", TextColor3 = Theme.MutedText, FontFace = library.font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y })
             return { instance = l, set = function(txt) l.Text = txt end }
         end
-
         function section_api:Button(p)
             local b = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = " " .. (p.name or p.Name or "Button"), TextColor3 = Theme.Text, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
             library:create("UICorner", {Parent = b, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = b, Color = Theme.Outline, Thickness = 1})
@@ -326,47 +313,38 @@ function library:window(props)
             b.MouseButton1Click:Connect(function() library:tween(b, {BackgroundColor3 = Theme.HoverBG}, 0.1); task.wait(0.1); library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1); if p.Callback then p.Callback() end end)
             return {}
         end
-
         function section_api:Toggle(p)
             local tog = { enabled = p.default or false }
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 6)})
-
             local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
-
             local indicator = library:create("Frame", { Parent = btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG })
             library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
-
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
-
             btn.MouseButton1Click:Connect(function()
                 tog.enabled = not tog.enabled; container.Visible = tog.enabled; library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
                 if p.Callback then p.Callback(tog.enabled) end
             end)
-
             function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
             function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
             function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
             function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
             return tog
         end
-
         function section_api:Slider(p)
             local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
             local s = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG })
             library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(s) end
-            
             local lbl = library:create("TextLabel", { Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
             local val_lbl = library:create("TextLabel", { Parent = s, Text = tostring(default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
             local bar_bg = library:create("Frame", { Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG })
             library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
             local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
             library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
-
             local dragging = false
             local function update_slider()
                 local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
@@ -378,7 +356,6 @@ function library:window(props)
             uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end)
             return {}
         end
-
         function section_api:Textbox(p)
             local bg = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG })
             library:create("UICorner", {Parent = bg, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = bg, Color = Theme.Outline, Thickness = 1})
@@ -387,26 +364,20 @@ function library:window(props)
             box.FocusLost:Connect(function() if p.Callback then p.Callback(box.Text) end end)
             return {}
         end
-
         function section_api:Dropdown(p)
             local isMulti = p.multi or p.Multi
             local selected = isMulti and (p.default or {}) or (p.default or (p.items and p.items[1]) or "None")
             local open = false
-
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
             local get_val_str = function() return isMulti and (#selected > 0 and table.concat(selected, ", ") or "None") or selected end
-
             local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
-
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 4)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8)})
-
             local searchBox = library:create("TextBox", { Parent = container, Size = dim2(1, 0, 0, 28), BackgroundColor3 = Theme.MainBG, TextColor3 = Theme.Text, PlaceholderText = "Search...", PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
             library:create("UICorner", {Parent = searchBox, CornerRadius = dim(0, 4)}); library:create("UIPadding", {Parent = searchBox, PaddingLeft = dim(0, 8)})
-
             local itemBtns = {}
             local function updateItems()
                 for _, iBtn in pairs(itemBtns) do
@@ -416,7 +387,6 @@ function library:window(props)
                 end
                 btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
             end
-
             btn.MouseButton1Click:Connect(function() open = not open; container.Visible = open end)
             for _, item in pairs(p.items or {}) do
                 local ibtn = library:create("TextButton", { Parent = container, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
@@ -567,75 +537,31 @@ function library:init_config(win)
     sec:Button({name = "Save Config", Callback = function() print("Config Saved") end})
 end
 
--- Professional Notification System
+-- Professional Notification System (At the bottom)
 local notifications = {}
 
 function notifications:create_notification(props)
     local type = props.type or "Info" -- "Success", "Error", "Info"
     local duration = props.duration or 5
-    
-    -- Color Mapping
-    local type_colors = {
-        Success = rgb(0, 200, 100),
-        Error = rgb(200, 50, 50),
-        Info = Theme.Accent
-    }
+    local type_colors = { Success = rgb(0, 200, 100), Error = rgb(200, 50, 50), Info = Theme.Accent }
     local accent_color = type_colors[type] or type_colors.Info
-    
-    -- Icon Mapping
-    local type_icons = {
-        Success = "lucide:check-circle",
-        Error = "lucide:alert-circle",
-        Info = "lucide:info"
-    }
+    local type_icons = { Success = "lucide:check-circle", Error = "lucide:alert-circle", Info = "lucide:info" }
 
-    -- Notification Frame
     local notif = library:create("Frame", {
-        Parent = notif_container,
-        Size = dim2(0, 280, 0, 60),
-        BackgroundColor3 = Theme.MainBG,
-        Position = dim2(1, 10, 0, 0), -- Start off-screen for tween
-        BorderSizePixel = 0
+        Parent = notif_container, Size = dim2(0, 280, 0, 60), BackgroundColor3 = Theme.MainBG,
+        Position = dim2(1, 10, 0, 0), BorderSizePixel = 0
     })
     library:create("UICorner", {Parent = notif, CornerRadius = dim(0, 6)})
     library:create("UIStroke", {Parent = notif, Color = Theme.Outline, Thickness = 1})
-
-    -- Side Accent Bar
-    local bar = library:create("Frame", {
-        Parent = notif,
-        Size = dim2(0, 4, 1, 0),
-        BackgroundColor3 = accent_color,
-        BorderSizePixel = 0
-    })
+    local bar = library:create("Frame", { Parent = notif, Size = dim2(0, 4, 1, 0), BackgroundColor3 = accent_color, BorderSizePixel = 0 })
     library:create("UICorner", {Parent = bar, CornerRadius = dim(0, 6)})
-
-    -- Icon
     local icon = get_icon(type_icons[type] or type_icons.Info, accent_color)
-    if icon then
-        icon.Size = dim2(0, 20, 0, 20)
-        icon.Position = dim2(0, 12, 0.5, 0)
-        icon.AnchorPoint = Vector2.new(0, 0.5)
-        icon.Parent = notif
-    end
-
-    -- Text
+    if icon then icon.Size = dim2(0, 20, 0, 20); icon.Position = dim2(0, 12, 0.5, 0); icon.AnchorPoint = Vector2.new(0, 0.5); icon.Parent = notif end
     local label = library:create("TextLabel", {
-        Parent = notif,
-        Text = props.name or "Notification",
-        Size = dim2(1, -45, 1, 0),
-        Position = dim2(0, 40, 0, 0),
-        BackgroundTransparency = 1,
-        TextColor3 = Theme.Text,
-        FontFace = library.font,
-        TextSize = 13,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true
+        Parent = notif, Text = props.name or "Notification", Size = dim2(1, -45, 1, 0), Position = dim2(0, 40, 0, 0),
+        BackgroundTransparency = 1, TextColor3 = Theme.Text, FontFace = library.font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true
     })
-
-    -- Animation: Slide In
     library:tween(notif, {Position = dim2(0, 0, 0, 0)}, 0.5)
-
-    -- Auto-Destroy Sequence
     task.delay(duration, function()
         library:tween(notif, {Position = dim2(1, 10, 0, 0)}, 0.5)
         task.wait(0.5)
