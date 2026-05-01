@@ -6,6 +6,7 @@
 local uis = game:GetService("UserInputService") 
 local tween_service = game:GetService("TweenService")
 local http_service = game:GetService("HttpService")
+local gui_service = game:GetService("GuiService")
 
 -- Safe Parent Getter
 local function get_ui_parent()
@@ -360,27 +361,26 @@ function library:window(props)
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
 
-            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
+            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Colorpicker"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
 
             local disp = library:create("Frame", { Parent = btn, Size = dim2(0, 20, 0, 16), Position = dim2(1, -28, 0.5, -8), BackgroundColor3 = color })
             library:create("UICorner", {Parent = disp, CornerRadius = dim(0, 4)})
 
-            -- The 2D Color Wheel Dropdown Container
-            local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 110), BackgroundTransparency = 1, Visible = false })
+            local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 130), BackgroundTransparency = 1, Visible = false })
             local wheelBg = library:create("Frame", {Parent = container, Size = dim2(1, 0, 1, 0), BackgroundColor3 = Theme.SectionBG})
             library:create("UICorner", {Parent = wheelBg, CornerRadius = dim(0, 6)})
 
             local wheel = library:create("ImageButton", {
-                Parent = wheelBg, Size = dim2(0, 100, 0, 100), Position = dim2(0, 5, 0, 5), BackgroundTransparency = 1, Image = "rbxassetid://6020299385"
+                Parent = wheelBg, Size = dim2(0, 100, 0, 100), Position = dim2(0, 10, 0, 10), BackgroundTransparency = 1, Image = "rbxassetid://6020299385"
             })
             local pickerDot = library:create("ImageLabel", {
                 Parent = wheel, Size = dim2(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1, Image = "rbxassetid://3678860011"
             })
 
             local valSlider = library:create("TextButton", {
-                Parent = wheelBg, Size = dim2(0, 15, 0, 100), Position = dim2(0, 115, 0, 5), BackgroundColor3 = rgb(255,255,255), Text = "", AutoButtonColor = false
+                Parent = wheelBg, Size = dim2(0, 15, 0, 100), Position = dim2(0, 120, 0, 10), BackgroundColor3 = rgb(255, 255, 255), Text = "", AutoButtonColor = false
             })
             library:create("UICorner", {Parent = valSlider, CornerRadius = dim(0, 4)})
             local valGrad = library:create("UIGradient", { Parent = valSlider, Rotation = 90, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromHSV(h,s,1)), ColorSequenceKeypoint.new(1, rgb(0,0,0))} })
@@ -395,11 +395,15 @@ function library:window(props)
                 if p.Callback then p.Callback(finalColor) end
             end
 
-            -- Set initial dot pos
-            local angle = math.pi - (h * math.pi * 2)
-            pickerDot.Position = dim2(0, 50 + math.cos(angle) * (s * 50), 0, 50 - math.sin(angle) * (s * 50))
+            -- Fix Initial Dot Position
+            local angle = (h * math.pi * 2) - (math.pi / 2)
+            pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
 
             local draggingWheel, draggingVal = false, false
+            
+            -- GET INSET HERE
+            local inset = gui_service:GetGuiInset()
+
             wheel.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = true end end)
             valSlider.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingVal = true end end)
             uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = false; draggingVal = false end end)
@@ -407,16 +411,35 @@ function library:window(props)
             uis.InputChanged:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
                     local mLoc = uis:GetMouseLocation()
+                    local correctedMouse = Vector2.new(mLoc.X, mLoc.Y - inset.Y)
+                    
                     if draggingWheel then
-                        local offset = mLoc - (wheel.AbsolutePosition + wheel.AbsoluteSize/2)
+                        -- 1. Calculate Relative Position
+                        local wheelCenter = wheel.AbsolutePosition + (wheel.AbsoluteSize / 2)
+                        local offset = correctedMouse - wheelCenter
                         local rad = wheel.AbsoluteSize.X / 2
+                        
+                        -- 2. Clamp to Circle
                         if offset.Magnitude > rad then offset = offset.Unit * rad end
-                        pickerDot.Position = dim2(0, (wheel.AbsoluteSize.X/2) + offset.X, 0, (wheel.AbsoluteSize.Y/2) + offset.Y)
-                        h = (math.pi - math.atan2(-offset.Y, offset.X)) / (math.pi * 2)
-                        s = offset.Magnitude / rad; update_color()
+                        
+                        -- 3. Set Dot Position (Absolute to Scale)
+                        pickerDot.Position = dim2(0.5 + (offset.X / wheel.AbsoluteSize.X), 0, 0.5 + (offset.Y / wheel.AbsoluteSize.Y), 0)
+                        
+                        -- 4. MATH FIX: Calculate Hue from Angle
+                        -- atan2 returns -PI to PI. We normalize it to 0-1
+                        local angle = math.atan2(offset.Y, offset.X)
+                        h = (angle / (math.pi * 2)) + 0.5
+                        s = offset.Magnitude / rad
+                        update_color()
+                        
                     elseif draggingVal then
-                        local yPos = math.clamp(mLoc.Y - valSlider.AbsolutePosition.Y, 0, valSlider.AbsoluteSize.Y)
-                        valIndicator.Position = dim2(0.5, 0, 0, yPos); v = 1 - (yPos / valSlider.AbsoluteSize.Y); update_color()
+                        -- Correct Y position for the bar
+                        local relativeY = correctedMouse.Y - valSlider.AbsolutePosition.Y
+                        local clampedY = math.clamp(relativeY, 0, valSlider.AbsoluteSize.Y)
+                        
+                        valIndicator.Position = dim2(0.5, 0, 0, clampedY)
+                        v = 1 - (clampedY / valSlider.AbsoluteSize.Y)
+                        update_color()
                     end
                 end
             end)
