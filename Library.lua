@@ -39,36 +39,8 @@ local Theme = {
 
 -- Library state
 local library = {
-    directory = "MonolithLib",
-    font = Font.fromEnum(Enum.Font.Gotham) -- Fallback
+    font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 }
-
--- Foolproof Font Loader
-pcall(function()
-    if writefile and makefolder and getcustomasset then
-        if not isfolder(library.directory) then makefolder(library.directory) end
-        if not isfolder(library.directory .. "/fonts") then makefolder(library.directory .. "/fonts") end
-        
-        local ttf_path = library.directory .. "/fonts/FingerPaint.ttf"
-        local json_path = library.directory .. "/fonts/FingerPaint.json"
-        
-        -- Download TTF if we don't have it
-        if not isfile(ttf_path) then
-            writefile(ttf_path, game:HttpGet("https://raw.githubusercontent.com/google/fonts/main/ofl/fingerpaint/FingerPaint-Regular.ttf"))
-        end
-        
-        -- Generate JSON FontFamily required by Font.new
-        if not isfile(json_path) then
-            local json_data = {
-                name = "FingerPaint",
-                faces = {{ name = "Regular", weight = 400, style = "normal", assetId = getcustomasset(ttf_path) }}
-            }
-            writefile(json_path, http_service:JSONEncode(json_data))
-        end
-        
-        library.font = Font.new(getcustomasset(json_path), Enum.FontWeight.Regular)
-    end
-end)
 
 -- Utility
 function library:tween(obj, props, time) 
@@ -164,10 +136,11 @@ function library:window(props)
         library:create("UIPadding", {Parent = page, PaddingLeft = dim(0, 15), PaddingRight = dim(0, 15), PaddingTop = dim(0, 15), PaddingBottom = dim(0, 15)})
 
         -- LEFT AND RIGHT COLUMNS
-        local left_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 1, 0), BackgroundTransparency = 1 })
+        -- LEFT AND RIGHT COLUMNS
+        local left_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
         library:create("UIListLayout", {Parent = left_col, Padding = dim(0, 10)})
         
-        local right_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 1, 0), BackgroundTransparency = 1 })
+        local right_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 0, 0), Position = dim2(0.5, 8, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
         library:create("UIListLayout", {Parent = right_col, Padding = dim(0, 10)})
 
         if #win.tabs == 0 then
