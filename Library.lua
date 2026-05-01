@@ -396,7 +396,7 @@ function library:window(props)
             end
 
             -- Fix Initial Dot Position
-            local angle = (h * math.pi * 2) - (math.pi / 2)
+            local angle = math.atan2(-offset.Y, offset.X) -- Negating Y fixes the "Upside Down" colors
             pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
 
             local draggingWheel, draggingVal = false, false
@@ -429,6 +429,7 @@ function library:window(props)
                         -- atan2 returns -PI to PI. We normalize it to 0-1
                         local angle = math.atan2(offset.Y, offset.X)
                         h = (angle / (math.pi * 2)) + 0.5
+                        h = h % 1 -- This ensures the value stays between 0 and 1 perfectly
                         s = offset.Magnitude / rad
                         update_color()
                         
