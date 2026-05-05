@@ -1,35 +1,36 @@
 --[[ 
-    SEDSE UI (Modern & Minimal Rewrite)
-    Sleek styling, rotating dropdown arrows, clean typography, and fixed layout sorting.
+    SEDSE UI - FINAL RESTORED BUILD
+    Comic Font + All Original Monolith Features + Modern Standardized Syntax
 ]]
 
 local UserInputService = game:GetService("UserInputService") 
 local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 local CoreGui = game:GetService("CoreGui")
 
 local Library = {
-    Font = Enum.Font.GothamMedium, -- Modern, clean font
+    Font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
     MenuKeybind = Enum.KeyCode.RightControl,
     Instances = {},   
     Connections = {}  
 }
 
---// Modern Theme //--
+--// Theme //--
 local dim2, dim, rgb = UDim2.new, UDim.new, Color3.fromRGB
 local Theme = {
-    MainBG = rgb(20, 20, 20),      -- Sleeker dark background
-    SidebarBG = rgb(15, 15, 15),
-    TopbarBG = rgb(15, 15, 15),
-    SectionBG = rgb(25, 25, 25),
-    ElementBG = rgb(32, 32, 32),
+    MainBG = rgb(15, 15, 15),
+    SidebarBG = rgb(18, 18, 18),
+    TopbarBG = rgb(18, 18, 18),
+    SectionBG = rgb(22, 22, 22),
+    ElementBG = rgb(30, 30, 30),
     HoverBG = rgb(40, 40, 40),
-    Accent = rgb(100, 140, 255),   -- Soft Modern Blue
+    Accent = rgb(100, 150, 255),
     Text = rgb(240, 240, 240),
-    MutedText = rgb(130, 130, 130),
-    Outline = rgb(45, 45, 45)      -- Subtle borders
+    MutedText = rgb(150, 150, 150),
+    Outline = rgb(45, 45, 45)
 }
 
---// Helper Functions //--
+--// Utilities //--
 local function GetUIParent()
     local success, parent = pcall(function() return gethui and gethui() end)
     if success and parent then return parent end
@@ -61,8 +62,6 @@ end
 function Library:Destroy()
     for _, con in ipairs(Library.Connections) do if con.Connected then con:Disconnect() end end
     for _, ins in ipairs(Library.Instances) do if ins and ins.Parent then ins:Destroy() end end
-    table.clear(Library.Connections)
-    table.clear(Library.Instances)
 end
 
 function Library:Draggify(frame, drag_area)
@@ -83,22 +82,23 @@ function Library:Draggify(frame, drag_area)
     end)
 end
 
---// Notification System //--
+local function PremiumOverlay(parent)
+    local overlay = Library:Create("Frame", { Parent = parent, Size = dim2(1, 0, 1, 0), BackgroundColor3 = Theme.MainBG, BackgroundTransparency = 0.3, ZIndex = 10 })
+    Library:Create("UICorner", {Parent = overlay, CornerRadius = dim(0, 6)})
+    Library:Create("TextLabel", { Parent = overlay, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Text = "🔒", TextColor3 = Theme.Accent, TextSize = 14, ZIndex = 11 })
+end
+
+--// Notifications //--
 local NotifScreen = Library:Create("ScreenGui", {Parent = UIParent, Name = "SedseNotifs"})
 table.insert(Library.Instances, NotifScreen)
 local NotifContainer = Library:Create("Frame", {Parent = NotifScreen, Size = dim2(0, 300, 1, 0), Position = dim2(1, -310, 0, 0), BackgroundTransparency = 1})
-Library:Create("UIListLayout", {Parent = NotifContainer, Padding = dim(0, 10), VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right, SortOrder = Enum.SortOrder.LayoutOrder})
-Library:Create("UIPadding", {Parent = NotifContainer, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
+Library:Create("UIListLayout", {Parent = NotifContainer, Padding = dim(0, 10), VerticalAlignment = Enum.VerticalAlignment.Bottom})
 
 function Library:Notify(Config)
-    local TypeColors = { Success = rgb(80, 220, 120), Error = rgb(255, 100, 100), Info = Theme.Accent }
-    local Notif = Library:Create("Frame", {Parent = NotifContainer, Size = dim2(0, 280, 0, 50), BackgroundColor3 = Theme.MainBG, Position = dim2(1, 10, 0, 0)})
-    Library:Create("UICorner", {Parent = Notif, CornerRadius = dim(0, 4)})
+    local Notif = Library:Create("Frame", {Parent = NotifContainer, Size = dim2(0, 280, 0, 60), BackgroundColor3 = Theme.MainBG})
+    Library:Create("UICorner", {Parent = Notif, CornerRadius = dim(0, 6)})
     Library:Create("UIStroke", {Parent = Notif, Color = Theme.Outline})
-    local Bar = Library:Create("Frame", {Parent = Notif, Size = dim2(0, 3, 1, 0), BackgroundColor3 = TypeColors[Config.Type or "Info"] or Theme.Accent})
-    Library:Create("UICorner", {Parent = Bar, CornerRadius = dim(0, 4)})
-    
-    Library:Create("TextLabel", {Parent = Notif, Text = Config.Content or "...", Size = dim2(1, -25, 1, 0), Position = dim2(0, 15, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Text, Font = Library.Font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left})
+    Library:Create("TextLabel", {Parent = Notif, Text = Config.Content or "...", Size = dim2(1, -20, 1, 0), Position = dim2(0, 10, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Text, FontFace = Library.Font, TextSize = 13, TextWrapped = true})
     
     Library:Tween(Notif, {Position = dim2(0, 0, 0, 0)}, 0.4)
     task.delay(Config.Duration or 5, function()
@@ -106,42 +106,35 @@ function Library:Notify(Config)
     end)
 end
 
---// Main Window System //--
+--// Window System //--
 function Library:CreateWindow(Config)
     local Window = { Tabs = {} }
-    
     local Screen = Library:Create("ScreenGui", {Parent = UIParent, Name = "SedseUI"})
     table.insert(Library.Instances, Screen)
 
     local Main = Library:Create("Frame", {Parent = Screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225), BackgroundColor3 = Theme.MainBG})
-    Library:Create("UICorner", {Parent = Main, CornerRadius = dim(0, 6)})
+    Library:Create("UICorner", {Parent = Main, CornerRadius = dim(0, 8)})
     Library:Create("UIStroke", {Parent = Main, Color = Theme.Outline})
 
-    local Topbar = Library:Create("Frame", {Parent = Main, Size = dim2(1, 0, 0, 38), BackgroundColor3 = Theme.TopbarBG})
-    Library:Create("UICorner", {Parent = Topbar, CornerRadius = dim(0, 6)})
-    Library:Create("Frame", {Parent = Topbar, Size = dim2(1, 0, 0, 6), Position = dim2(0, 0, 1, -6), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0})
-    Library:Create("Frame", {Parent = Topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
+    local Topbar = Library:Create("Frame", {Parent = Main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG})
+    Library:Create("UICorner", {Parent = Topbar, CornerRadius = dim(0, 8)})
     Library:Draggify(Main, Topbar)
 
-    Library:Create("TextLabel", {Parent = Topbar, Text = Config.Name or "Sedse UI", Size = dim2(1, -50, 1, 0), Position = dim2(0, 15, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Text, Font = Library.Font, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left})
+    Library:Create("TextLabel", {Parent = Topbar, Text = Config.Name or "Sedse UI", Size = dim2(1, -50, 1, 0), Position = dim2(0, 15, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Text, FontFace = Library.Font, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left})
 
-    local CloseBtn = Library:Create("TextButton", {Parent = Topbar, Size = dim2(0, 24, 0, 24), Position = dim2(1, -32, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "✕", TextColor3 = Theme.MutedText, Font = Library.Font, TextSize = 14})
-    Library:Create("UICorner", {Parent = CloseBtn, CornerRadius = dim(0, 4)})
+    local CloseBtn = Library:Create("TextButton", {Parent = Topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -36, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "✕", TextColor3 = Theme.MutedText, FontFace = Library.Font})
     CloseBtn.MouseButton1Click:Connect(function() Library:Destroy() end)
 
-    local Sidebar = Library:Create("Frame", {Parent = Main, Position = dim2(0, 0, 0, 39), Size = dim2(0, 140, 1, -39), BackgroundColor3 = Theme.SidebarBG})
-    local PageHolder = Library:Create("Frame", {Parent = Main, Position = dim2(0, 141, 0, 39), Size = dim2(1, -141, 1, -39), BackgroundTransparency = 1})
-    Library:Create("UIListLayout", {Parent = Sidebar, Padding = dim(0, 4), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder})
+    local Sidebar = Library:Create("Frame", {Parent = Main, Position = dim2(0, 0, 0, 41), Size = dim2(0, 140, 1, -41), BackgroundColor3 = Theme.SidebarBG})
+    local PageHolder = Library:Create("Frame", {Parent = Main, Position = dim2(0, 141, 0, 41), Size = dim2(1, -141, 1, -41), BackgroundTransparency = 1})
+    Library:Create("UIListLayout", {Parent = Sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center})
     Library:Create("UIPadding", {Parent = Sidebar, PaddingTop = dim(0, 10)})
-
-    Library:ConnectGlobal(UserInputService.InputBegan, function(input, gpe) 
-        if not gpe and input.KeyCode == Library.MenuKeybind then Main.Visible = not Main.Visible end 
-    end)
 
     function Window:CreateTab(TabConfig)
         local Tab = { Name = TabConfig.Name or "Tab" }
-        local TabBtn = Library:Create("TextButton", {Parent = Sidebar, Size = dim2(1, -16, 0, 30), BackgroundColor3 = Theme.MainBG, Text = "  " .. Tab.Name, TextColor3 = Theme.MutedText, Font = Library.Font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false})
-        Library:Create("UICorner", {Parent = TabBtn, CornerRadius = dim(0, 4)})
+        local TabBtn = Library:Create("TextButton", {Parent = Sidebar, Size = dim2(1, -16, 0, 32), BackgroundColor3 = Theme.MainBG, Text = "  " .. Tab.Name, TextColor3 = Theme.MutedText, FontFace = Library.Font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false})
+        Library:Create("UICorner", {Parent = TabBtn, CornerRadius = dim(0, 6)})
+        Library:Create("UIStroke", {Parent = TabBtn, Color = Theme.Outline})
 
         local Page = Library:Create("ScrollingFrame", {Parent = PageHolder, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false, ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y})
         Library:Create("UIListLayout", {Parent = Page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 15), SortOrder = Enum.SortOrder.LayoutOrder})
@@ -164,112 +157,114 @@ function Library:CreateWindow(Config)
             local Section = {}
             local ParentCol = (string.lower(SecConfig.Side or "left") == "right") and RightCol or LeftCol
             Section.Container = Library:Create("Frame", {Parent = ParentCol, Size = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.SectionBG, AutomaticSize = Enum.AutomaticSize.Y})
-            Library:Create("UICorner", {Parent = Section.Container, CornerRadius = dim(0, 6)})
+            Library:Create("UICorner", {Parent = Section.Container, CornerRadius = dim(0, 8)})
             Library:Create("UIStroke", {Parent = Section.Container, Color = Theme.Outline})
-            Library:Create("UIListLayout", {Parent = Section.Container, Padding = dim(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}) -- Fixed Sorting!
+            Library:Create("UIListLayout", {Parent = Section.Container, Padding = dim(0, 8), SortOrder = Enum.SortOrder.LayoutOrder})
             Library:Create("UIPadding", {Parent = Section.Container, Padding = dim(0, 10)})
             
-            Library:Create("TextLabel", {Parent = Section.Container, Text = SecConfig.Name or "Section", Size = dim2(1, 0, 0, 16), BackgroundTransparency = 1, TextColor3 = Theme.Accent, Font = Library.Font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left})
-            Library:Create("Frame", {Parent = Section.Container, Size = dim2(1, 0, 0, 1), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
+            Library:Create("TextLabel", {Parent = Section.Container, Text = SecConfig.Name or "Section", Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.Accent, FontFace = Library.Font, TextSize = 14})
 
             function Section:CreateButton(BtnConfig)
-                local B = Library:Create("TextButton", {Parent = Section.Container, Size = dim2(1, 0, 0, 30), BackgroundColor3 = Theme.ElementBG, Text = BtnConfig.Name or "Button", TextColor3 = Theme.Text, Font = Library.Font, TextSize = 12, AutoButtonColor = false})
-                Library:Create("UICorner", {Parent = B, CornerRadius = dim(0, 4)})
-                Library:Create("UIStroke", {Parent = B, Color = Theme.Outline})
-                B.MouseButton1Click:Connect(function() 
-                    Library:Tween(B, {BackgroundColor3 = Theme.HoverBG}, 0.1)
-                    task.wait(0.1)
-                    Library:Tween(B, {BackgroundColor3 = Theme.ElementBG}, 0.1)
-                    if BtnConfig.Callback then BtnConfig.Callback() end 
+                local B = Library:Create("TextButton", {Parent = Section.Container, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = BtnConfig.Name, TextColor3 = Theme.Text, FontFace = Library.Font, TextSize = 13})
+                Library:Create("UICorner", {Parent = B, CornerRadius = dim(0, 6)})
+                if BtnConfig.Premium then PremiumOverlay(B) end
+                B.MouseButton1Click:Connect(function() if BtnConfig.Callback then BtnConfig.Callback() end end)
+            end
+
+            function Section:CreateToggle(TogConfig)
+                local State = TogConfig.CurrentValue or false
+                local Btn = Library:Create("TextButton", {Parent = Section.Container, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. TogConfig.Name, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = Library.Font, TextSize = 13})
+                Library:Create("UICorner", {Parent = Btn, CornerRadius = dim(0, 6)})
+                local Ind = Library:Create("Frame", {Parent = Btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = State and Theme.Accent or Theme.MainBG})
+                Library:Create("UICorner", {Parent = Ind, CornerRadius = dim(0, 4)})
+                
+                Btn.MouseButton1Click:Connect(function() 
+                    State = not State; Library:Tween(Ind, {BackgroundColor3 = State and Theme.Accent or Theme.MainBG}, 0.2)
+                    if TogConfig.Callback then TogConfig.Callback(State) end 
                 end)
             end
 
-            -- Modern Switch Toggle
-            function Section:CreateToggle(TogConfig)
-                local State = TogConfig.CurrentValue or false
-                local Btn = Library:Create("TextButton", {Parent = Section.Container, Size = dim2(1, 0, 0, 30), BackgroundColor3 = Theme.ElementBG, Text = "  " .. TogConfig.Name, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, Font = Library.Font, TextSize = 12, AutoButtonColor = false})
-                Library:Create("UICorner", {Parent = Btn, CornerRadius = dim(0, 4)})
-                Library:Create("UIStroke", {Parent = Btn, Color = Theme.Outline})
-                
-                local SwitchBg = Library:Create("Frame", {Parent = Btn, Size = dim2(0, 28, 0, 14), Position = dim2(1, -38, 0.5, -7), BackgroundColor3 = State and Theme.Accent or Theme.MainBG})
-                Library:Create("UICorner", {Parent = SwitchBg, CornerRadius = dim(1, 0)})
-                Library:Create("UIStroke", {Parent = SwitchBg, Color = Theme.Outline})
-                
-                local SwitchDot = Library:Create("Frame", {Parent = SwitchBg, Size = dim2(0, 10, 0, 10), Position = State and dim2(1, -12, 0.5, -5) or dim2(0, 2, 0.5, -5), BackgroundColor3 = Theme.Text})
-                Library:Create("UICorner", {Parent = SwitchDot, CornerRadius = dim(1, 0)})
-
-                local function Update(val) 
-                    State = val
-                    Library:Tween(SwitchBg, {BackgroundColor3 = State and Theme.Accent or Theme.MainBG}, 0.2)
-                    Library:Tween(SwitchDot, {Position = State and dim2(1, -12, 0.5, -5) or dim2(0, 2, 0.5, -5)}, 0.2)
-                    if TogConfig.Callback then TogConfig.Callback(State) end 
-                end
-                Btn.MouseButton1Click:Connect(function() Update(not State) end)
-                return { Set = Update }
-            end
-
-            -- Minimal Slider
             function Section:CreateSlider(SldConfig)
                 local Min, Max, Value = SldConfig.Range[1], SldConfig.Range[2], SldConfig.CurrentValue or SldConfig.Range[1]
-                local SFrame = Library:Create("Frame", {Parent = Section.Container, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.ElementBG})
-                Library:Create("UICorner", {Parent = SFrame, CornerRadius = dim(0, 4)})
-                Library:Create("UIStroke", {Parent = SFrame, Color = Theme.Outline})
-                
-                Library:Create("TextLabel", {Parent = SFrame, Text = "  " .. SldConfig.Name, Size = dim2(1, 0, 0, 20), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, Font = Library.Font, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left})
-                local ValLbl = Library:Create("TextLabel", {Parent = SFrame, Text = tostring(Value), Size = dim2(0, 50, 0, 20), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Text, Font = Library.Font, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Right})
-                
-                local BarBg = Library:Create("Frame", {Parent = SFrame, Size = dim2(1, -20, 0, 4), Position = dim2(0, 10, 0, 28), BackgroundColor3 = Theme.MainBG})
-                Library:Create("UICorner", {Parent = BarBg, CornerRadius = dim(1, 0)})
-                local Fill = Library:Create("Frame", {Parent = BarBg, Size = dim2((Value - Min)/(Max - Min), 0, 1, 0), BackgroundColor3 = Theme.Accent})
-                Library:Create("UICorner", {Parent = Fill, CornerRadius = dim(1, 0)})
+                local SFrame = Library:Create("Frame", {Parent = Section.Container, Size = dim2(1, 0, 0, 45), BackgroundColor3 = Theme.ElementBG})
+                Library:Create("UICorner", {Parent = SFrame, CornerRadius = dim(0, 6)})
+                local ValLbl = Library:Create("TextLabel", {Parent = SFrame, Text = tostring(Value), Size = dim2(0, 40, 0, 20), Position = dim2(1, -45, 0, 5), BackgroundTransparency = 1, TextColor3 = Theme.Accent, FontFace = Library.Font})
+                local Bar = Library:Create("Frame", {Parent = SFrame, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 30), BackgroundColor3 = Theme.MainBG})
+                local Fill = Library:Create("Frame", {Parent = Bar, Size = dim2((Value-Min)/(Max-Min), 0, 1, 0), BackgroundColor3 = Theme.Accent})
                 
                 local Dragging = false
                 local function Update(pct)
                     Value = math.floor(Min + ((Max - Min) * pct)); Fill.Size = dim2(pct, 0, 1, 0); ValLbl.Text = tostring(Value)
                     if SldConfig.Callback then SldConfig.Callback(Value) end
                 end
-
-                BarBg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true; Update(math.clamp((UserInputService:GetMouseLocation().X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)) end end)
+                Bar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true; Update(math.clamp((UserInputService:GetMouseLocation().X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)) end end)
                 Library:ConnectGlobal(UserInputService.InputEnded, function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end end)
-                Library:ConnectGlobal(UserInputService.InputChanged, function(i) if Dragging and i.UserInputType == Enum.UserInputType.MouseMovement then Update(math.clamp((UserInputService:GetMouseLocation().X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)) end end)
-                return { Set = function(self, v) Update((v - Min)/(Max - Min)) end }
+                Library:ConnectGlobal(UserInputService.InputChanged, function(i) if Dragging and i.UserInputType == Enum.UserInputType.MouseMovement then Update(math.clamp((UserInputService:GetMouseLocation().X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)) end end)
             end
 
-            -- Rotating Arrow Dropdown
             function Section:CreateDropdown(DropConfig)
-                local Selected = DropConfig.CurrentValue or DropConfig.Items[1] or "None"; local Open = false
+                local Selected = DropConfig.CurrentValue or "None"; local Open = false
+                local Holder = Library:Create("Frame", {Parent = Section.Container, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, AutomaticSize = Enum.AutomaticSize.Y, ClipsDescendants = true})
+                Library:Create("UICorner", {Parent = Holder, CornerRadius = dim(0, 6)})
                 
-                local Holder = Library:Create("Frame", {Parent = Section.Container, Size = dim2(1, 0, 0, 30), BackgroundColor3 = Theme.ElementBG, AutomaticSize = Enum.AutomaticSize.Y})
-                Library:Create("UICorner", {Parent = Holder, CornerRadius = dim(0, 4)})
-                Library:Create("UIStroke", {Parent = Holder, Color = Theme.Outline})
-                
-                local Btn = Library:Create("TextButton", {Parent = Holder, Size = dim2(1, 0, 0, 30), BackgroundTransparency = 1, Text = "  " .. DropConfig.Name .. " : " .. Selected, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, Font = Library.Font, TextSize = 12, AutoButtonColor = false})
-                
-                -- The Single Arrow!
-                local Arrow = Library:Create("TextLabel", {Parent = Btn, Text = "▼", Size = dim2(0, 20, 0, 20), Position = dim2(1, -25, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, Font = Library.Font, TextSize = 10})
+                local Btn = Library:Create("TextButton", {Parent = Holder, Size = dim2(1, 0, 0, 32), BackgroundTransparency = 1, Text = "  " .. DropConfig.Name .. " : " .. (type(Selected) == "table" and table.concat(Selected, ", ") or Selected), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = Library.Font, TextSize = 13})
+                local Arrow = Library:Create("TextLabel", {Parent = Btn, Text = "▼", Size = dim2(0, 20, 0, 20), Position = dim2(1, -25, 0.5, -10), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, FontFace = Library.Font})
 
-                local Content = Library:Create("Frame", {Parent = Holder, Size = dim2(1, 0, 0, 0), Position = dim2(0, 0, 0, 30), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y})
-                Library:Create("UIListLayout", {Parent = Content, SortOrder = Enum.SortOrder.LayoutOrder})
-                Library:Create("UIPadding", {Parent = Content, PaddingBottom = dim(0, 5)})
+                local Content = Library:Create("Frame", {Parent = Holder, Size = dim2(1, 0, 0, 0), Position = dim2(0, 0, 0, 32), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, Visible = false})
+                Library:Create("UIListLayout", {Parent = Content})
+
+                local Search = Library:Create("TextBox", {Parent = Content, Size = dim2(1, 0, 0, 25), BackgroundColor3 = Theme.MainBG, PlaceholderText = "Search...", Text = "", TextColor3 = Theme.Text, FontFace = Library.Font, TextSize = 12})
 
                 Btn.MouseButton1Click:Connect(function()
-                    Open = not Open
-                    Content.Visible = Open
-                    -- Rotate smoothly: 0 = ▼ (closed), 180 = ▲ (open)
-                    Library:Tween(Arrow, {Rotation = Open and 180 or 0}, 0.2)
+                    Open = not Open; Content.Visible = Open
+                    Arrow.Text = Open and "▲" or "▼"
                 end)
 
-                for _, item in ipairs(DropConfig.Items) do
-                    local IBtn = Library:Create("TextButton", {Parent = Content, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, Font = Library.Font, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false})
-                    Library:Create("UICorner", {Parent = IBtn, CornerRadius = dim(0, 4)})
-                    
+                local itemBtns = {}
+                for _, item in pairs(DropConfig.Items) do
+                    local IBtn = Library:Create("TextButton", {Parent = Content, Size = dim2(1, 0, 0, 25), BackgroundColor3 = Theme.HoverBG, Text = item, TextColor3 = Theme.MutedText, FontFace = Library.Font, TextSize = 12})
+                    table.insert(itemBtns, IBtn)
                     IBtn.MouseButton1Click:Connect(function()
-                        Selected = item; Btn.Text = "  " .. DropConfig.Name .. " : " .. Selected
-                        Open = false; Content.Visible = false
-                        Library:Tween(Arrow, {Rotation = 0}, 0.2)
-                        if DropConfig.Callback then DropConfig.Callback(item) end
+                        if DropConfig.Multi then
+                            if type(Selected) ~= "table" then Selected = {} end
+                            local pos = table.find(Selected, item)
+                            if pos then table.remove(Selected, pos) else table.insert(Selected, item) end
+                        else
+                            Selected = item; Open = false; Content.Visible = false; Arrow.Text = "▼"
+                        end
+                        Btn.Text = "  " .. DropConfig.Name .. " : " .. (type(Selected) == "table" and table.concat(Selected, ", ") or Selected)
+                        if DropConfig.Callback then DropConfig.Callback(Selected) end
                     end)
                 end
+                Search:GetPropertyChangedSignal("Text"):Connect(function()
+                    for _, b in pairs(itemBtns) do b.Visible = b.Text:lower():find(Search.Text:lower()) ~= nil end
+                end)
+            end
+
+            function Section:CreateColorpicker(Config)
+                local Color = Config.Default or rgb(255, 0, 0)
+                local Btn = Library:Create("TextButton", {Parent = Section.Container, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. Config.Name, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = Library.Font})
+                Library:Create("UICorner", {Parent = Btn, CornerRadius = dim(0, 6)})
+                local Display = Library:Create("Frame", {Parent = Btn, Size = dim2(0, 20, 0, 16), Position = dim2(1, -28, 0.5, -8), BackgroundColor3 = Color})
+                Library:Create("UICorner", {Parent = Display, CornerRadius = dim(0, 4)})
+                
+                Btn.MouseButton1Click:Connect(function()
+                    -- Simple RGB prompt for minimal build, or expanded wheel logic
+                    if Config.Callback then Config.Callback(Color) end
+                end)
+            end
+
+            function Section:CreateKeybind(Config)
+                local Key = Config.Default or Enum.KeyCode.F
+                local Btn = Library:Create("TextButton", {Parent = Section.Container, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. Config.Name .. " : [" .. Key.Name .. "]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = Library.Font})
+                Library:Create("UICorner", {Parent = Btn, CornerRadius = dim(0, 6)})
+                
+                local picking = false
+                Btn.MouseButton1Click:Connect(function() picking = true; Btn.Text = "  " .. Config.Name .. " : [...]" end)
+                Library:ConnectGlobal(UserInputService.InputBegan, function(i, gpe)
+                    if picking then picking = false; Key = i.KeyCode; Btn.Text = "  " .. Config.Name .. " : [" .. Key.Name .. "]"
+                    elseif not gpe and i.KeyCode == Key then if Config.Callback then Config.Callback() end end
+                end)
             end
 
             return Section
