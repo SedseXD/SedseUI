@@ -371,17 +371,26 @@ function library:window(props)
             local selected = isMulti and (p.default or {}) or (p.default or (p.items and p.items[1]) or "None")
             local open = false
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
+            
+            -- FIX: Force sorting by LayoutOrder instead of Alphabetical Name
+            library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
             
             local function get_val_str() return isMulti and (#selected > 0 and table.concat(selected, ", ") or "None") or selected end
             
-            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
+            -- FIX: Give main button LayoutOrder = 1 so it stays on top
+            local btn = library:create("TextButton", { Parent = holder, LayoutOrder = 1, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
             
-            local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UIListLayout", {Parent = container, Padding = dim(0, 4)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8)})
-            local searchBox = library:create("TextBox", { Parent = container, Size = dim2(1, 0, 0, 28), BackgroundColor3 = Theme.MainBG, TextColor3 = Theme.Text, PlaceholderText = "Search...", PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+            -- FIX: Give container LayoutOrder = 2 so it stays below the button
+            local container = library:create("Frame", { Parent = holder, LayoutOrder = 2, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
+            
+            -- FIX: Force sorting by LayoutOrder inside the container
+            library:create("UIListLayout", {Parent = container, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
+            library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8)})
+            
+            -- FIX: Give Search Box LayoutOrder = 1 so it stays at the top of the list
+            local searchBox = library:create("TextBox", { Parent = container, LayoutOrder = 1, Size = dim2(1, 0, 0, 28), BackgroundColor3 = Theme.MainBG, TextColor3 = Theme.Text, PlaceholderText = "Search...", PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
             library:create("UICorner", {Parent = searchBox, CornerRadius = dim(0, 4)}); library:create("UIPadding", {Parent = searchBox, PaddingLeft = dim(0, 8)})
             
             local itemBtns = {}
@@ -397,20 +406,24 @@ function library:window(props)
             
             btn.MouseButton1Click:Connect(function() open = not open; container.Visible = open end)
             
-            -- NEW: Dynamic item builder
             local function build_items(itemList)
                 -- Clear old buttons
                 for _, iBtn in pairs(itemBtns) do iBtn.btn:Destroy() end
                 itemBtns = {}
                 
-                -- Validate selected item still exists
+                -- Validate selected item still exists, if it doesn't, pick the first one available
                 if not isMulti then
-                    if not table.find(itemList, selected) then selected = itemList[1] or "None" end
+                    if not table.find(itemList, selected) then 
+                        selected = itemList[1] or "None" 
+                        if p.Callback then p.Callback(selected) end
+                    end
                 end
 
-                for _, item in pairs(itemList or {}) do
-                    local ibtn = library:create("TextButton", { Parent = container, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
+                for index, item in pairs(itemList or {}) do
+                    -- FIX: LayoutOrder = index + 1 so they generate in order AFTER the search box
+                    local ibtn = library:create("TextButton", { Parent = container, LayoutOrder = index + 1, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
                     library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)}); table.insert(itemBtns, {btn = ibtn, name = item})
+                    
                     ibtn.MouseButton1Click:Connect(function()
                         if isMulti then 
                             local idx = table.find(selected, item); 
@@ -424,7 +437,6 @@ function library:window(props)
                 updateItems()
             end
 
-            -- Build initial items
             build_items(p.items or {})
 
             searchBox:GetPropertyChangedSignal("Text"):Connect(function() 
@@ -432,7 +444,6 @@ function library:window(props)
                 for _, iBtn in pairs(itemBtns) do iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) end 
             end)
             
-            -- NEW: Return the API with the :set function
             return {
                 set = function(self, new_items)
                     build_items(new_items)
