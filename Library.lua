@@ -394,18 +394,25 @@ function library:window(props)
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
             
-            -- NEW: Triangle Arrow Indicator
-            local arrow = library:create("TextLabel", { 
-                Parent = btn, 
-                Size = dim2(0, 20, 1, 0), 
-                Position = dim2(1, -25, 0, 0), 
-                BackgroundTransparency = 1, 
-                Text = "▲", -- Default state (Closed = Up)
-                TextColor3 = Theme.MutedText, 
-                FontFace = library.font, 
-                TextSize = 12, 
-                TextXAlignment = Enum.TextXAlignment.Center 
-            })
+            -- NEW: Load both Lucide chevron icons
+            local iconDown = get_icon("lucide:chevron-down", Theme.MutedText)
+            local iconUp = get_icon("lucide:chevron-up", Theme.MutedText)
+            
+            if iconDown and iconUp then
+                -- Setup Chevron Down (Visible when Closed)
+                iconDown.Size = dim2(0, 16, 0, 16)
+                iconDown.Position = dim2(1, -26, 0.5, 0)
+                iconDown.AnchorPoint = Vector2.new(0, 0.5)
+                iconDown.Parent = btn
+                iconDown.Visible = true -- Closed by default
+                
+                -- Setup Chevron Up (Visible when Open)
+                iconUp.Size = dim2(0, 16, 0, 16)
+                iconUp.Position = dim2(1, -26, 0.5, 0)
+                iconUp.AnchorPoint = Vector2.new(0, 0.5)
+                iconUp.Parent = btn
+                iconUp.Visible = false
+            end
             
             local container = library:create("Frame", { Parent = holder, LayoutOrder = 2, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
             
@@ -426,11 +433,14 @@ function library:window(props)
                 btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
             end
             
-            -- NEW: Updates the arrow when you click the main button
+            -- NEW: Toggle icon visibility when the main button is clicked
             btn.MouseButton1Click:Connect(function() 
                 open = not open; 
                 container.Visible = open 
-                arrow.Text = open and "▼" or "▲" 
+                if iconDown and iconUp then
+                    iconDown.Visible = not open
+                    iconUp.Visible = open
+                end
             end)
             
             local function build_items(itemList)
@@ -456,7 +466,11 @@ function library:window(props)
                             selected = item; 
                             open = false; 
                             container.Visible = false 
-                            arrow.Text = "▲" -- NEW: Resets the arrow if selecting an item closes the menu
+                            -- NEW: Reset icons to Closed state if menu closes
+                            if iconDown and iconUp then
+                                iconDown.Visible = true
+                                iconUp.Visible = false
+                            end
                         end
                         updateItems(); if p.Callback then p.Callback(selected) end
                     end)
