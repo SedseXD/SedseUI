@@ -372,15 +372,20 @@ function library:window(props)
             local open = false
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
-            local get_val_str = function() return isMulti and (#selected > 0 and table.concat(selected, ", ") or "None") or selected end
+            
+            local function get_val_str() return isMulti and (#selected > 0 and table.concat(selected, ", ") or "None") or selected end
+            
             local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
+            
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 4)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8)})
             local searchBox = library:create("TextBox", { Parent = container, Size = dim2(1, 0, 0, 28), BackgroundColor3 = Theme.MainBG, TextColor3 = Theme.Text, PlaceholderText = "Search...", PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
             library:create("UICorner", {Parent = searchBox, CornerRadius = dim(0, 4)}); library:create("UIPadding", {Parent = searchBox, PaddingLeft = dim(0, 8)})
+            
             local itemBtns = {}
+            
             local function updateItems()
                 for _, iBtn in pairs(itemBtns) do
                     local isSel = isMulti and table.find(selected, iBtn.name) or (selected == iBtn.name)
@@ -389,18 +394,50 @@ function library:window(props)
                 end
                 btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
             end
+            
             btn.MouseButton1Click:Connect(function() open = not open; container.Visible = open end)
-            for _, item in pairs(p.items or {}) do
-                local ibtn = library:create("TextButton", { Parent = container, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
-                library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)}); table.insert(itemBtns, {btn = ibtn, name = item})
-                ibtn.MouseButton1Click:Connect(function()
-                    if isMulti then local idx = table.find(selected, item); if idx then table.remove(selected, idx) else table.insert(selected, item) end else selected = item; open = false; container.Visible = false end
-                    updateItems(); if p.Callback then p.Callback(selected) end
-                end)
+            
+            -- NEW: Dynamic item builder
+            local function build_items(itemList)
+                -- Clear old buttons
+                for _, iBtn in pairs(itemBtns) do iBtn.btn:Destroy() end
+                itemBtns = {}
+                
+                -- Validate selected item still exists
+                if not isMulti then
+                    if not table.find(itemList, selected) then selected = itemList[1] or "None" end
+                end
+
+                for _, item in pairs(itemList or {}) do
+                    local ibtn = library:create("TextButton", { Parent = container, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
+                    library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)}); table.insert(itemBtns, {btn = ibtn, name = item})
+                    ibtn.MouseButton1Click:Connect(function()
+                        if isMulti then 
+                            local idx = table.find(selected, item); 
+                            if idx then table.remove(selected, idx) else table.insert(selected, item) end 
+                        else 
+                            selected = item; open = false; container.Visible = false 
+                        end
+                        updateItems(); if p.Callback then p.Callback(selected) end
+                    end)
+                end
+                updateItems()
             end
-            searchBox:GetPropertyChangedSignal("Text"):Connect(function() local q = searchBox.Text:lower(); for _, iBtn in pairs(itemBtns) do iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) end end)
-            updateItems()
-            return {}
+
+            -- Build initial items
+            build_items(p.items or {})
+
+            searchBox:GetPropertyChangedSignal("Text"):Connect(function() 
+                local q = searchBox.Text:lower(); 
+                for _, iBtn in pairs(itemBtns) do iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) end 
+            end)
+            
+            -- NEW: Return the API with the :set function
+            return {
+                set = function(self, new_items)
+                    build_items(new_items)
+                end
+            }
         end
 
         function section_api:Colorpicker(p)
