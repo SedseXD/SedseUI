@@ -334,6 +334,12 @@ function library:window(props)
             function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
             function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
             function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
+            function tog:set(state)
+                tog.enabled = state
+                container.Visible = state
+                library:tween(indicator, {BackgroundColor3 = state and Theme.Accent or Theme.MainBG}, 0.2)
+                if p.Callback then p.Callback(state) end
+            end
             return tog
         end
         function section_api:Slider(p)
@@ -356,7 +362,15 @@ function library:window(props)
             bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
             uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
             uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end)
-            return {}
+            return {
+                set = function(self, val)
+                    val = math.clamp(val, min, max)
+                    local pct = (val - min) / (max - min)
+                    fill.Size = dim2(pct, 0, 1, 0)
+                    val_lbl.Text = tostring(val)
+                    if p.Callback then p.Callback(val) end
+                end
+            }
         end
         function section_api:Textbox(p)
             local bg = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG })
@@ -458,8 +472,13 @@ function library:window(props)
             end)
             
             return {
-                set = function(self, new_items)
+                set_items = function(self, new_items)
                     build_items(new_items)
+                end,
+                set_value = function(self, val)
+                    selected = val
+                    updateItems()
+                    if p.Callback then p.Callback(selected) end
                 end
             }
         end
@@ -521,7 +540,16 @@ function library:window(props)
                     end
                 end
             end)
-            return {}
+            return {
+                set = function(self, new_color)
+                    h, s, v = new_color:ToHSV()
+                    update_color()
+                    local angle = (h * math.pi * 2) - (math.pi / 2)
+                    pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
+                    local hY = valSlider.AbsoluteSize.Y > 0 and valSlider.AbsoluteSize.Y or 100
+                    valIndicator.Position = dim2(0.5, 0, 0, (1-v) * hY)
+                end
+            }
         end
 
         function section_api:Keybind(p)
