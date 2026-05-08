@@ -10,6 +10,22 @@ local tween_service = game:GetService("TweenService")
 local http_service = game:GetService("HttpService")
 local gui_service = game:GetService("GuiService")
 
+-- Put this at the very top, right after your services
+local function global_cleanup()
+    local parent = get_ui_parent() -- Using your existing get_ui_parent function
+    
+    -- Remove existing UIs
+    local existing_ui = parent:FindFirstChild("MonolithUI")
+    if existing_ui then existing_ui:Destroy() end
+    
+    local existing_notifs = parent:FindFirstChild("MonolithNotifs")
+    if existing_notifs then existing_notifs:Destroy() end
+    
+    -- Note: To fully clear UIS connections, we need the Connection Table (see below)
+end
+
+global_cleanup()
+
 -- Safe Parent Getter
 local function get_ui_parent()
     local success, parent = pcall(function() return gethui and gethui() end)
@@ -38,6 +54,29 @@ local Theme = {
     MutedText = rgb(150, 150, 150),
     Outline = rgb(45, 45, 45)
 }
+
+local connections = {}
+
+-- Helper function to track connections
+local function track_connection(conn)
+    table.insert(connections, conn)
+    return conn
+end
+
+function library:Unload()
+    -- 1. Disconnect all UIS listeners
+    for _, conn in ipairs(connections) do
+        if conn then conn:Disconnect() end
+    end
+    table.clear(connections)
+
+    -- 2. Destroy UI
+    local parent = get_ui_parent()
+    if parent:FindFirstChild("MonolithUI") then parent.MonolithUI:Destroy() end
+    if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
+    
+    print("Monolith Library Unloaded Successfully")
+end
 
 -- Library state (MUST BE DEFINED BEFORE UTILITIES)
 local library = {
@@ -534,7 +573,7 @@ function library:window(props)
             wheel.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = true end end)
             valSlider.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingVal = true end end)
             uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = false; draggingVal = false end end)
-            uis.InputChanged:Connect(function(input)
+            track_connection(uis.InputChanged:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
                     local mLoc = uis:GetMouseLocation()
                     local correctedMouse = Vector2.new(mLoc.X, mLoc.Y - inset.Y)
@@ -553,7 +592,7 @@ function library:window(props)
                         valIndicator.Position = dim2(0.5, 0, 0, clampedY); v = 1 - (clampedY / valSlider.AbsoluteSize.Y); update_color()
                     end
                 end
-            end)
+            end))
             return {
                 set = function(self, new_color)
                     h, s, v = new_color:ToHSV()
