@@ -1,5 +1,3 @@
---- START OF FILE Paste May 05, 2026 - 5:31PM ---
-
 --[[ 
     MONOLITH FINGERPAINT LIBRARY (V9 - Final Optimized Build)
     Designed for: loadstring execution
@@ -10,23 +8,7 @@ local tween_service = game:GetService("TweenService")
 local http_service = game:GetService("HttpService")
 local gui_service = game:GetService("GuiService")
 
--- Put this at the very top, right after your services
-local function global_cleanup()
-    local parent = get_ui_parent() -- Using your existing get_ui_parent function
-    
-    -- Remove existing UIs
-    local existing_ui = parent:FindFirstChild("MonolithUI")
-    if existing_ui then existing_ui:Destroy() end
-    
-    local existing_notifs = parent:FindFirstChild("MonolithNotifs")
-    if existing_notifs then existing_notifs:Destroy() end
-    
-    -- Note: To fully clear UIS connections, we need the Connection Table (see below)
-end
-
-global_cleanup()
-
--- Safe Parent Getter
+-- 1. FIRST: Define helper functions that everything else depends on
 local function get_ui_parent()
     local success, parent = pcall(function() return gethui and gethui() end)
     if success and parent then return parent end
@@ -35,12 +17,48 @@ local function get_ui_parent()
     return game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 end
 
-local ui_parent = get_ui_parent()
+-- 2. SECOND: Define the library table and state before adding functions to it
+local library = {
+    font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+}
+library.__index = library
+
+local connections = {}
+local function track_connection(conn)
+    if conn then table.insert(connections, conn) end
+    return conn
+end
+
+-- 3. THIRD: Define the Unload/Cleanup logic
+function library:Unload()
+    -- Disconnect all UIS listeners
+    for _, conn in ipairs(connections) do
+        if conn then conn:Disconnect() end
+    end
+    table.clear(connections)
+
+    -- Destroy UI
+    local parent = get_ui_parent()
+    if parent:FindFirstChild("MonolithUI") then parent.MonolithUI:Destroy() end
+    if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
+    
+    print("Monolith Library Unloaded Successfully")
+end
+
+local function global_cleanup()
+    local parent = get_ui_parent()
+    if parent:FindFirstChild("MonolithUI") then parent.MonolithUI:Destroy() end
+    if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
+end
+
+-- Run cleanup immediately on script start (for re-runs)
+global_cleanup()
 
 -- Shorthands & Theme
 local dim2 = UDim2.new
 local dim = UDim.new 
 local rgb = Color3.fromRGB
+local ui_parent = get_ui_parent()
 
 local Theme = {
     MainBG = rgb(15, 15, 15),
@@ -54,35 +72,6 @@ local Theme = {
     MutedText = rgb(150, 150, 150),
     Outline = rgb(45, 45, 45)
 }
-
-local connections = {}
-
--- Helper function to track connections
-local function track_connection(conn)
-    table.insert(connections, conn)
-    return conn
-end
-
-function library:Unload()
-    -- 1. Disconnect all UIS listeners
-    for _, conn in ipairs(connections) do
-        if conn then conn:Disconnect() end
-    end
-    table.clear(connections)
-
-    -- 2. Destroy UI
-    local parent = get_ui_parent()
-    if parent:FindFirstChild("MonolithUI") then parent.MonolithUI:Destroy() end
-    if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
-    
-    print("Monolith Library Unloaded Successfully")
-end
-
--- Library state (MUST BE DEFINED BEFORE UTILITIES)
-local library = {
-    font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-}
-library.__index = library
 
 -- Utility Functions
 function library:tween(obj, props, time) 
@@ -104,18 +93,20 @@ function library:draggify(frame, drag_area)
             dragging = true; startInput = input.Position; startPos = frame.Position
         end
     end)
-    uis.InputChanged:Connect(function(input)
+    -- TRACKED CONNECTION
+    track_connection(uis.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - startInput
             frame.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
-    end)
-    uis.InputEnded:Connect(function(input)
+    end))
+    -- TRACKED CONNECTION
+    track_connection(uis.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-    end)
+    end))
 end
 
--- Notification Container Setup (Now placed AFTER library:create)
+-- Notification Container Setup
 local notif_screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithNotifs"})
 local notif_container = library:create("Frame", {
     Parent = notif_screen, 
@@ -283,8 +274,10 @@ function library:window(props)
     local resizeHandle = library:create("TextButton", { Parent = main, Size = dim2(0, 20, 0, 20), Position = dim2(1, -20, 1, -20), BackgroundTransparency = 1, Text = "↘", TextColor3 = Theme.MutedText, TextSize = 14, FontFace = library.font, ZIndex = 100 })
     local resizing, rStartPos, rStartSize
     resizeHandle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = true; rStartPos = input.Position; rStartSize = main.Size end end)
-    uis.InputChanged:Connect(function(input) if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - rStartPos; main.Size = dim2(0, math.max(450, rStartSize.X.Offset + delta.X), 0, math.max(300, rStartSize.Y.Offset + delta.Y)) end end)
-    uis.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = false end end)
+    -- TRACKED CONNECTION
+    track_connection(uis.InputChanged:Connect(function(input) if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - rStartPos; main.Size = dim2(0, math.max(450, rStartSize.X.Offset + delta.X), 0, math.max(300, rStartSize.Y.Offset + delta.Y)) end end))
+    -- TRACKED CONNECTION
+    track_connection(uis.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = false end end))
 
     local isMinimized = false
     local savedSize = main.Size
@@ -303,7 +296,8 @@ function library:window(props)
     win.toggle_menu = function(a, b) 
         local state = (type(a) == "boolean") and a or b; if state == nil then state = not main.Visible end; main.Visible = state
     end
-    uis.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.RightControl then win.toggle_menu() end end)
+    -- TRACKED CONNECTION
+    track_connection(uis.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.RightControl then win.toggle_menu() end end))
 
     if props.Loading then
         local bootCoroutine = BootSequence(main, props.name or "Nebula UI")
@@ -399,8 +393,10 @@ function library:window(props)
                 if p.Callback then p.Callback(value) end
             end
             bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
-            uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
-            uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end)
+            -- TRACKED CONNECTION
+            track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
+            -- TRACKED CONNECTION
+            track_connection(uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end))
             return {
                 set = function(self, val)
                     val = math.clamp(val, min, max)
@@ -433,19 +429,15 @@ function library:window(props)
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
             
-            -- NEW: Load both Lucide chevron icons
             local iconDown = get_icon("lucide:chevron-down", Theme.MutedText)
             local iconUp = get_icon("lucide:chevron-up", Theme.MutedText)
             
             if iconDown and iconUp then
-                -- Setup Chevron Down (Visible when Closed)
                 iconDown.Size = dim2(0, 16, 0, 16)
                 iconDown.Position = dim2(1, -26, 0.5, 0)
                 iconDown.AnchorPoint = Vector2.new(0, 0.5)
                 iconDown.Parent = btn
-                iconDown.Visible = true -- Closed by default
-                
-                -- Setup Chevron Up (Visible when Open)
+                iconDown.Visible = true
                 iconUp.Size = dim2(0, 16, 0, 16)
                 iconUp.Position = dim2(1, -26, 0.5, 0)
                 iconUp.AnchorPoint = Vector2.new(0, 0.5)
@@ -472,7 +464,6 @@ function library:window(props)
                 btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
             end
             
-            -- NEW: Toggle icon visibility when the main button is clicked
             btn.MouseButton1Click:Connect(function() 
                 open = not open; 
                 container.Visible = open 
@@ -505,7 +496,6 @@ function library:window(props)
                             selected = item; 
                             open = false; 
                             container.Visible = false 
-                            -- NEW: Reset icons to Closed state if menu closes
                             if iconDown and iconUp then
                                 iconDown.Visible = true
                                 iconUp.Visible = false
@@ -572,7 +562,9 @@ function library:window(props)
             local inset = gui_service:GetGuiInset()
             wheel.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = true end end)
             valSlider.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingVal = true end end)
-            uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = false; draggingVal = false end end)
+            -- TRACKED CONNECTION
+            track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = false; draggingVal = false end end))
+            -- TRACKED CONNECTION
             track_connection(uis.InputChanged:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
                     local mLoc = uis:GetMouseLocation()
@@ -612,10 +604,11 @@ function library:window(props)
             if p.Premium or p.premium then PremiumOverlay(btn) end
             local picking = false
             btn.MouseButton1Click:Connect(function() picking = true; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [...]" end)
-            uis.InputBegan:Connect(function(input, gpe)
+            -- TRACKED CONNECTION
+            track_connection(uis.InputBegan:Connect(function(input, gpe)
                 if picking and input.UserInputType == Enum.UserInputType.Keyboard then picking = false; key = input.KeyCode; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]"
                 elseif not gpe and input.KeyCode == key and key ~= Enum.KeyCode.Unknown then if p.Callback then p.Callback() end end
-            end)
+            end))
             return {}
         end
 
@@ -675,4 +668,4 @@ function library:window(props)
     return win
 end
 
-return library, notifications
+return library
