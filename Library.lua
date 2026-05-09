@@ -1,5 +1,5 @@
 --[[ 
-    MONOLITH FINGERPAINT LIBRARY (V9.1 - Config Fixed Build)
+    MONOLITH FINGERPAINT LIBRARY (V9 - Final Optimized Build)
     Designed for: loadstring execution
 ]]
 
@@ -8,7 +8,7 @@ local tween_service = game:GetService("TweenService")
 local http_service = game:GetService("HttpService")
 local gui_service = game:GetService("GuiService")
 
--- 1. FIRST: Define helper functions
+-- 1. FIRST: Define helper functions that everything else depends on
 local function get_ui_parent()
     local success, parent = pcall(function() return gethui and gethui() end)
     if success and parent then return parent end
@@ -17,6 +17,7 @@ local function get_ui_parent()
     return game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 end
 
+-- 2. SECOND: Define the library table and state before adding functions to it
 local library = {
     font = Font.new("rbxassetid://12187375716", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
 }
@@ -30,13 +31,17 @@ end
 
 -- 3. THIRD: Define the Unload/Cleanup logic
 function library:Unload()
+    -- Disconnect all UIS listeners
     for _, conn in ipairs(connections) do
         if conn then conn:Disconnect() end
     end
     table.clear(connections)
+
+    -- Destroy UI
     local parent = get_ui_parent()
     if parent:FindFirstChild("MonolithUI") then parent.MonolithUI:Destroy() end
     if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
+    
     print("Monolith Library Unloaded Successfully")
 end
 
@@ -46,8 +51,10 @@ local function global_cleanup()
     if parent:FindFirstChild("MonolithNotifs") then parent.MonolithNotifs:Destroy() end
 end
 
+-- Run cleanup immediately on script start (for re-runs)
 global_cleanup()
 
+-- Shorthands & Theme
 local dim2 = UDim2.new
 local dim = UDim.new 
 local rgb = Color3.fromRGB
@@ -60,45 +67,11 @@ local Theme = {
     SectionBG = rgb(22, 22, 22),
     ElementBG = rgb(30, 30, 30),
     HoverBG = rgb(40, 40, 40),
-    Accent = rgb(70, 125, 244),
+    Accent = rgb(100, 150, 255),
     Text = rgb(240, 240, 240),
     MutedText = rgb(150, 150, 150),
     Outline = rgb(45, 45, 45)
 }
-
-local ConfigManager = { Folder = "MonolithConfigs" }
-function ConfigManager:Save(name, data)
-    if not makefolder(ConfigManager.Folder) then end 
-    writefile(ConfigManager.Folder .. "/" .. name .. ".json", http_service:JSONEncode(data))
-end
-function ConfigManager:Load(name)
-    local success, content = pcall(function() return readfile(ConfigManager.Folder .. "/" .. name .. ".json") end)
-    return success and http_service:JSONDecode(content) or nil
-end
-function ConfigManager:GetList()
-    local list = {}
-    for _, file in pairs(listfiles(ConfigManager.Folder)) do
-        table.insert(list, file:gsub(".json", ""))
-    end
-    return list
-end
-function ConfigManager:Delete(name)
-    pcall(function() delfile(ConfigManager.Folder .. "/" .. name .. ".json") end)
-end
-
-local element_registry = {} 
-
-function library:UpdateAccent(newColor)
-    local oldColor = Theme.Accent
-    Theme.Accent = newColor
-    for _, obj in pairs(ui_parent:GetDescendants()) do
-        if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") or obj:IsA("UIStroke") then
-            if obj.BackgroundColor3 == oldColor then obj.BackgroundColor3 = newColor end
-            if obj.TextColor3 == oldColor then obj.TextColor3 = newColor end
-            if obj:IsA("UIStroke") and obj.Color == oldColor then obj.Color = newColor end
-        end
-    end
-end
 
 -- Utility Functions
 function library:tween(obj, props, time) 
@@ -120,37 +93,43 @@ function library:draggify(frame, drag_area)
             dragging = true; startInput = input.Position; startPos = frame.Position
         end
     end)
+    -- TRACKED CONNECTION
     track_connection(uis.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - startInput
             frame.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end))
+    -- TRACKED CONNECTION
     track_connection(uis.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end))
 end
 
--- Notification Setup
+-- Notification Container Setup
 local notif_screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithNotifs"})
 local notif_container = library:create("Frame", {
-    Parent = notif_screen, Size = dim2(0, 300, 1, 0), Position = dim2(1, -310, 0, 0), BackgroundTransparency = 1
+    Parent = notif_screen, 
+    Size = dim2(0, 300, 1, 0), 
+    Position = dim2(1, -310, 0, 0), 
+    BackgroundTransparency = 1
 })
-library:create("UIListLayout", {Parent = notif_container, Padding = dim(0, 10), VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right})
+library:create("UIListLayout", {
+    Parent = notif_container, 
+    Padding = dim(0, 10), 
+    VerticalAlignment = Enum.VerticalAlignment.Bottom, 
+    HorizontalAlignment = Enum.HorizontalAlignment.Right
+})
 library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
 
--- Synchronous Icon Load
--- Synchronous Icon Load (SAFE)
+-- Safe Lazy-Load Lucide Icons
 local Icons
-local iconSuccess, iconResult = pcall(function()
-    local code = game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua")
-    local loader = loadstring(code)
-    if loader then 
-        local loaded = loader()
-        if loaded then loaded.SetIconsType("lucide"); return loaded end
-    end
+task.spawn(function()
+    pcall(function()
+        Icons = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"))()
+        if Icons then Icons.SetIconsType("lucide") end
+    end)
 end)
-Icons = iconSuccess and iconResult or nil
 
 local function get_icon(iconName, color)
     if not iconName then return nil end
@@ -164,22 +143,28 @@ local function get_icon(iconName, color)
     end
     local holder = Instance.new("Frame")
     holder.BackgroundTransparency = 1
-    if Icons then
-        local iconStr = iconName:gsub("^lucide:", "")
-        local ok, iconObj = pcall(function() return Icons.Image({ Icon = iconStr, Colors = {color or Color3.fromRGB(255, 255, 255)} }) end)
-        if ok and iconObj and iconObj.IconFrame then
-            iconObj.IconFrame.BackgroundTransparency = 1
-            iconObj.IconFrame.Size = UDim2.new(1, 0, 1, 0)
-            iconObj.IconFrame.Parent = holder
+    task.spawn(function()
+        local waited = 0
+        while not Icons and waited < 5 do task.wait(0.1); waited = waited + 0.1 end
+        if Icons then
+            local iconStr = iconName:gsub("^lucide:", "")
+            local ok, iconObj = pcall(function() return Icons.Image({ Icon = iconStr, Colors = {color or Color3.fromRGB(255, 255, 255)} }) end)
+            if ok and iconObj and iconObj.IconFrame then
+                iconObj.IconFrame.BackgroundTransparency = 1
+                iconObj.IconFrame.Size = UDim2.new(1, 0, 1, 0)
+                iconObj.IconFrame.Parent = holder
+            end
         end
-    end
+    end)
     return holder
 end
 
 local function color_icon(iconInstance, color)
     if not iconInstance then return end
     for _, v in pairs(iconInstance:GetDescendants()) do
-        if v:IsA("ImageLabel") then tween_service:Create(v, TweenInfo.new(0.15), {ImageColor3 = color}):Play() end
+        if v:IsA("ImageLabel") then
+            tween_service:Create(v, TweenInfo.new(0.15), {ImageColor3 = color}):Play()
+        end
     end
 end
 
@@ -191,9 +176,11 @@ local function PremiumOverlay(parent)
     library:create("TextButton", { Parent = overlay, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 12 })
 end
 
+-- LOADING ANIMATION LOGIC
 local function BootSequence(windowFrame, windowName)
     local main = library:create("Frame", {
-        Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), ZIndex = 1000, BorderSizePixel = 0
+        Parent = windowFrame, Size = dim2(1, 0, 1, 0), BackgroundColor3 = rgb(0, 0, 0), 
+        ZIndex = 1000, BorderSizePixel = 0
     })
     local logo = library:create("TextLabel", {
         Parent = main, Text = windowName, Position = dim2(0.5, 0, 0.4, 0), AnchorPoint = Vector2.new(0.5, 0.5),
@@ -236,6 +223,7 @@ local function BootSequence(windowFrame, windowName)
     end)
 end
 
+-- Window System
 function library:window(props)
     local win = { items = {}, tabs = {} }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
@@ -286,7 +274,9 @@ function library:window(props)
     local resizeHandle = library:create("TextButton", { Parent = main, Size = dim2(0, 20, 0, 20), Position = dim2(1, -20, 1, -20), BackgroundTransparency = 1, Text = "↘", TextColor3 = Theme.MutedText, TextSize = 14, FontFace = library.font, ZIndex = 100 })
     local resizing, rStartPos, rStartSize
     resizeHandle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = true; rStartPos = input.Position; rStartSize = main.Size end end)
+    -- TRACKED CONNECTION
     track_connection(uis.InputChanged:Connect(function(input) if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then local delta = input.Position - rStartPos; main.Size = dim2(0, math.max(450, rStartSize.X.Offset + delta.X), 0, math.max(300, rStartSize.Y.Offset + delta.Y)) end end))
+    -- TRACKED CONNECTION
     track_connection(uis.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = false end end))
 
     local isMinimized = false
@@ -306,6 +296,7 @@ function library:window(props)
     win.toggle_menu = function(a, b) 
         local state = (type(a) == "boolean") and a or b; if state == nil then state = not main.Visible end; main.Visible = state
     end
+    -- TRACKED CONNECTION
     track_connection(uis.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.RightControl then win.toggle_menu() end end))
 
     if props.Loading then
@@ -368,23 +359,20 @@ function library:window(props)
             library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
-            
+            btn.MouseButton1Click:Connect(function()
+                tog.enabled = not tog.enabled; container.Visible = tog.enabled; library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
+                if p.Callback then p.Callback(tog.enabled) end
+            end)
+            function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
+            function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
+            function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
+            function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
             function tog:set(state)
                 tog.enabled = state
                 container.Visible = state
                 library:tween(indicator, {BackgroundColor3 = state and Theme.Accent or Theme.MainBG}, 0.2)
                 if p.Callback then p.Callback(state) end
-                -- UPDATE REGISTRY
-                for _, el in pairs(element_registry) do if el.name == p.name then el.current = state end end
             end
-
-            btn.MouseButton1Click:Connect(function() tog:set(not tog.enabled) end)
-            table.insert(element_registry, {name = p.name or p.Name, current = tog.enabled, set = function(v) tog:set(v) end})
-
-            function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
-            function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
-            function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
-            function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
             return tog
         end
         function section_api:Slider(p)
@@ -398,29 +386,26 @@ function library:window(props)
             library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
             local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
             library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
-            
-            local slider_api = {}
-            function slider_api:set(val)
-                val = math.clamp(val, min, max)
-                local pct = (val - min) / (max - min)
-                fill.Size = dim2(pct, 0, 1, 0)
-                val_lbl.Text = tostring(val)
-                if p.Callback then p.Callback(val) end
-                -- UPDATE REGISTRY
-                for _, el in pairs(element_registry) do if el.name == p.name then el.current = val end end
-            end
-
             local dragging = false
             local function update_slider()
                 local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
-                local value = math.floor(min + ((max - min) * pct))
-                slider_api:set(value)
+                local value = math.floor(min + ((max - min) * pct)); fill.Size = dim2(pct, 0, 1, 0); val_lbl.Text = tostring(value)
+                if p.Callback then p.Callback(value) end
             end
             bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
+            -- TRACKED CONNECTION
             track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
+            -- TRACKED CONNECTION
             track_connection(uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end))
-            table.insert(element_registry, {name = p.name or p.Name, current = default, set = function(v) slider_api:set(v) end})
-            return slider_api
+            return {
+                set = function(self, val)
+                    val = math.clamp(val, min, max)
+                    local pct = (val - min) / (max - min)
+                    fill.Size = dim2(pct, 0, 1, 0)
+                    val_lbl.Text = tostring(val)
+                    if p.Callback then p.Callback(val) end
+                end
+            }
         end
         function section_api:Textbox(p)
             local bg = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG })
@@ -435,28 +420,41 @@ function library:window(props)
             local selected = isMulti and (p.default or {}) or (p.default or (p.items and p.items[1]) or "None")
             local open = false
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
+            
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
-            local function get_val_str() 
-                if isMulti then return (#selected > 0 and table.concat(selected, ", ") or "None") end
-                return tostring(selected) 
-            end
-            local btn = library:create("TextButton", { Parent = holder, LayoutOrder = 1, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
+            
+            local function get_val_str() return isMulti and (#selected > 0 and table.concat(selected, ", ") or "None") or selected end
+            
+            local btn = library:create("TextButton", { Parent = holder, LayoutOrder = 1, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
+            
             local iconDown = get_icon("lucide:chevron-down", Theme.MutedText)
             local iconUp = get_icon("lucide:chevron-up", Theme.MutedText)
+            
             if iconDown and iconUp then
-                iconDown.Size = dim2(0, 16, 0, 16); iconDown.Position = dim2(1, -26, 0.5, 0); iconDown.AnchorPoint = Vector2.new(0, 0.5); iconDown.Parent = btn
-                iconUp.Size = dim2(0, 16, 0, 16); iconUp.Position = dim2(1, -26, 0.5, 0); iconUp.AnchorPoint = Vector2.new(0, 0.5); iconUp.Parent = btn
+                iconDown.Size = dim2(0, 16, 0, 16)
+                iconDown.Position = dim2(1, -26, 0.5, 0)
+                iconDown.AnchorPoint = Vector2.new(0, 0.5)
+                iconDown.Parent = btn
+                iconDown.Visible = true
+                iconUp.Size = dim2(0, 16, 0, 16)
+                iconUp.Position = dim2(1, -26, 0.5, 0)
+                iconUp.AnchorPoint = Vector2.new(0, 0.5)
+                iconUp.Parent = btn
                 iconUp.Visible = false
             end
-            local container = library:create("Frame", { Parent = holder, LayoutOrder = 2, Size = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.SectionBG, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UICorner", {Parent = container, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = container, Color = Theme.Outline, Thickness = 1})
+            
+            local container = library:create("Frame", { Parent = holder, LayoutOrder = 2, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
+            
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
-            library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8), PaddingRight = dim(0, 8), PaddingTop = dim(0, 5), PaddingBottom = dim(0, 5)})
+            library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8)})
+            
             local searchBox = library:create("TextBox", { Parent = container, LayoutOrder = 1, Size = dim2(1, 0, 0, 28), BackgroundColor3 = Theme.MainBG, TextColor3 = Theme.Text, PlaceholderText = "Search...", PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
             library:create("UICorner", {Parent = searchBox, CornerRadius = dim(0, 4)}); library:create("UIPadding", {Parent = searchBox, PaddingLeft = dim(0, 8)})
+            
             local itemBtns = {}
+            
             local function updateItems()
                 for _, iBtn in pairs(itemBtns) do
                     local isSel = isMulti and table.find(selected, iBtn.name) or (selected == iBtn.name)
@@ -465,49 +463,69 @@ function library:window(props)
                 end
                 btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
             end
+            
+            btn.MouseButton1Click:Connect(function() 
+                open = not open; 
+                container.Visible = open 
+                if iconDown and iconUp then
+                    iconDown.Visible = not open
+                    iconUp.Visible = open
+                end
+            end)
+            
             local function build_items(itemList)
                 for _, iBtn in pairs(itemBtns) do iBtn.btn:Destroy() end
                 itemBtns = {}
+                
+                if not isMulti then
+                    if not table.find(itemList, selected) then 
+                        selected = itemList[1] or "None" 
+                        if p.Callback then p.Callback(selected) end
+                    end
+                end
+
                 for index, item in pairs(itemList or {}) do
                     local ibtn = library:create("TextButton", { Parent = container, LayoutOrder = index + 1, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
-                    library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)})
-                    table.insert(itemBtns, {btn = ibtn, name = item})
+                    library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)}); table.insert(itemBtns, {btn = ibtn, name = item})
+                    
                     ibtn.MouseButton1Click:Connect(function()
                         if isMulti then 
-                            local idx = table.find(selected, item)
+                            local idx = table.find(selected, item); 
                             if idx then table.remove(selected, idx) else table.insert(selected, item) end 
                         else 
-                            selected = item; open = false; container.Visible = false 
-                            if iconDown and iconUp then iconDown.Visible = true; iconUp.Visible = false end
+                            selected = item; 
+                            open = false; 
+                            container.Visible = false 
+                            if iconDown and iconUp then
+                                iconDown.Visible = true
+                                iconUp.Visible = false
+                            end
                         end
-                        updateItems()
-                        if p.Callback then p.Callback(selected) end
-                        -- UPDATE REGISTRY
-                        for _, el in pairs(element_registry) do if el.name == p.name then el.current = selected end end
+                        updateItems(); if p.Callback then p.Callback(selected) end
                     end)
                 end
                 updateItems()
             end
-            btn.MouseButton1Click:Connect(function() 
-                open = not open; container.Visible = open 
-                if iconDown and iconUp then iconDown.Visible = not open; iconUp.Visible = open end
-                if open then searchBox.Text = "" end
-            end)
+
+            build_items(p.items or {})
+
             searchBox:GetPropertyChangedSignal("Text"):Connect(function() 
-                local q = searchBox.Text:lower()
+                local q = searchBox.Text:lower(); 
                 for _, iBtn in pairs(itemBtns) do iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) end 
             end)
-            local dropdown_api = {}
-            function dropdown_api:set_value(val)
-                selected = val; updateItems()
-                if p.Callback then p.Callback(selected) end
-                for _, el in pairs(element_registry) do if el.name == p.name then el.current = val end end
-            end
-            function dropdown_api:set_items(new_items) build_items(new_items) end
-            build_items(p.items or {})
-            table.insert(element_registry, {name = p.name or p.Name or "Dropdown", current = selected, set = function(v) dropdown_api:set_value(v) end})
-            return dropdown_api
+            
+            return {
+                set_items = function(self, new_items)
+                    build_items(new_items)
+                end,
+                set_value = function(self, val)
+                    selected = val
+                    updateItems()
+                    if p.Callback then p.Callback(selected) end
+                end
+            }
         end
+
         function section_api:Colorpicker(p)
             local open = false
             local color = p.default or rgb(255, 0, 0)
@@ -528,6 +546,7 @@ function library:window(props)
             library:create("UICorner", {Parent = valSlider, CornerRadius = dim(0, 4)})
             local valGrad = library:create("UIGradient", { Parent = valSlider, Rotation = 90, Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromHSV(h,s,1)), ColorSequenceKeypoint.new(1, rgb(0,0,0))} })
             local valIndicator = library:create("Frame", { Parent = valSlider, Size = dim2(1, 4, 0, 4), Position = dim2(0.5, 0, 1-v, 0), AnchorPoint = Vector2.new(0.5, 0.5), BackgroundColor3 = Theme.Text, BorderSizePixel = 0 })
+
             btn.MouseButton1Click:Connect(function() open = not open; container.Visible = open end)
             local function update_color()
                 local finalColor = Color3.fromHSV(h, s, v)
@@ -535,13 +554,17 @@ function library:window(props)
                 valGrad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromHSV(h,s,1)), ColorSequenceKeypoint.new(1, rgb(0,0,0))}
                 if p.Callback then p.Callback(finalColor) end
             end
+
             local angle = (h * math.pi * 2) - (math.pi / 2)
             pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
+
             local draggingWheel, draggingVal = false, false
             local inset = gui_service:GetGuiInset()
             wheel.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = true end end)
             valSlider.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingVal = true end end)
+            -- TRACKED CONNECTION
             track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then draggingWheel = false; draggingVal = false end end))
+            -- TRACKED CONNECTION
             track_connection(uis.InputChanged:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
                     local mLoc = uis:GetMouseLocation()
@@ -553,7 +576,8 @@ function library:window(props)
                         if offset.Magnitude > rad then offset = offset.Unit * rad end
                         pickerDot.Position = dim2(0.5 + (offset.X / wheel.AbsoluteSize.X), 0, 0.5 + (offset.Y / wheel.AbsoluteSize.Y), 0)
                         local angle = math.atan2(-offset.Y, offset.X)
-                        h = (angle / (math.pi * 2)) + 0.5; h = h % 1; s = offset.Magnitude / rad; update_color()
+                        h = (angle / (math.pi * 2)) + 0.5
+                        h = h % 1; s = offset.Magnitude / rad; update_color()
                     elseif draggingVal then
                         local relativeY = correctedMouse.Y - valSlider.AbsolutePosition.Y
                         local clampedY = math.clamp(relativeY, 0, valSlider.AbsoluteSize.Y)
@@ -561,14 +585,18 @@ function library:window(props)
                     end
                 end
             end))
-            return { set = function(self, new_color)
-                h, s, v = new_color:ToHSV(); update_color()
-                local angle = (h * math.pi * 2) - (math.pi / 2)
-                pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
-                local hY = valSlider.AbsoluteSize.Y > 0 and valSlider.AbsoluteSize.Y or 100
-                valIndicator.Position = dim2(0.5, 0, 0, (1-v) * hY)
-            end }
+            return {
+                set = function(self, new_color)
+                    h, s, v = new_color:ToHSV()
+                    update_color()
+                    local angle = (h * math.pi * 2) - (math.pi / 2)
+                    pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
+                    local hY = valSlider.AbsoluteSize.Y > 0 and valSlider.AbsoluteSize.Y or 100
+                    valIndicator.Position = dim2(0.5, 0, 0, (1-v) * hY)
+                end
+            }
         end
+
         function section_api:Keybind(p)
             local key = p.default or Enum.KeyCode.Unknown
             local btn = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
@@ -576,12 +604,14 @@ function library:window(props)
             if p.Premium or p.premium then PremiumOverlay(btn) end
             local picking = false
             btn.MouseButton1Click:Connect(function() picking = true; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [...]" end)
+            -- TRACKED CONNECTION
             track_connection(uis.InputBegan:Connect(function(input, gpe)
                 if picking and input.UserInputType == Enum.UserInputType.Keyboard then picking = false; key = input.KeyCode; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]"
                 elseif not gpe and input.KeyCode == key and key ~= Enum.KeyCode.Unknown then if p.Callback then p.Callback() end end
             end))
             return {}
         end
+
         function section_api:Status(p)
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4)})
@@ -593,6 +623,7 @@ function library:window(props)
             end
             return stat_api
         end
+
         function section_api:List(p)
             local list_api = { items = {} }
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
@@ -630,10 +661,10 @@ function library:window(props)
             setmetatable(s, { __index = section_api })
             return s
         end
+
         return tab
     end
 
-    
     return win
 end
 
