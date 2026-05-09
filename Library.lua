@@ -598,19 +598,26 @@ function library:window(props)
         end
 
         function section_api:Keybind(p)
-            local key = p.default or Enum.KeyCode.Unknown
-            local btn = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
-            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(btn) end
-            local picking = false
-            btn.MouseButton1Click:Connect(function() picking = true; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [...]" end)
-            -- TRACKED CONNECTION
-            track_connection(uis.InputBegan:Connect(function(input, gpe)
-                if picking and input.UserInputType == Enum.UserInputType.Keyboard then picking = false; key = input.KeyCode; btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]"
-                elseif not gpe and input.KeyCode == key and key ~= Enum.KeyCode.Unknown then if p.Callback then p.Callback() end end
-            end))
-            return {}
+    local key = p.default or Enum.KeyCode.Unknown
+    local btn = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]", TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
+    library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
+    if p.Premium or p.premium then PremiumOverlay(btn) end
+    local picking = false
+    btn.MouseButton1Click:Connect(function() 
+        picking = true
+        btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [...]" 
+    end)
+    track_connection(uis.InputBegan:Connect(function(input, gpe)
+        if picking and input.UserInputType == Enum.UserInputType.Keyboard then
+            picking = false
+            key = input.KeyCode
+            btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]"
+            if p.Callback then p.Callback(key) end  -- ← pass the new key, only on pick
         end
+        -- REMOVED: the elseif that fired callback on every keypress
+    end))
+    return {}
+end
 
         function section_api:Status(p)
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
