@@ -628,63 +628,7 @@ function library:window(props)
         return tab
     end
 
-    -- AUTOMATIC UI SETTINGS TAB
-    local settingsTab = win:Tab({name = "UI Settings", Icon = "lucide:settings"})
-    local themeSection = settingsTab:Section({name = "Appearance", side = "left"})
-    local configSection = settingsTab:Section({name = "Configuration", side = "right"})
-
-    themeSection:Colorpicker({
-        name = "Accent Color",
-        default = Theme.Accent,
-        Callback = function(color) library:UpdateAccent(color) end
-    })
-
-    local configName = "Default"
-    local currentSelectedConfig = "Default"
-    configSection:Textbox({
-        placeholder = "Config Name",
-        Callback = function(txt) configName = txt end
-    })
-
-    local configList = configSection:Dropdown({
-        name = "Saved Configs",
-        items = ConfigManager:GetList(),
-        Callback = function(val) currentSelectedConfig = val end
-    })
-
-    configSection:Button({
-        name = "Save Config",
-        Callback = function()
-            local data = {}
-            for _, el in ipairs(element_registry) do data[el.name] = el.current end
-            ConfigManager:Save(configName, data)
-            configList:set_items(ConfigManager:GetList())
-        end
-    })
-
-    configSection:Button({
-        name = "Load Config",
-        Callback = function()
-            local data = ConfigManager:Load(currentSelectedConfig)
-            if data then
-                for _, el in ipairs(element_registry) do
-                    if data[el.name] ~= nil then
-                        el.set(data[el.name])
-                        el.current = data[el.name]
-                    end
-                end
-            end
-        end
-    })
-
-    configSection:Button({
-        name = "Delete Config",
-        Callback = function()
-            ConfigManager:Delete(currentSelectedConfig)
-            configList:set_items(ConfigManager:GetList())
-        end
-    })
-
+    
     return win
 end
 
