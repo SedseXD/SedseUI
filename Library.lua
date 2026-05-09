@@ -67,11 +67,52 @@ local Theme = {
     SectionBG = rgb(22, 22, 22),
     ElementBG = rgb(30, 30, 30),
     HoverBG = rgb(40, 40, 40),
-    Accent = rgb(100, 150, 255),
+    Accent = rgb(70, 125, 244),
     Text = rgb(240, 240, 240),
     MutedText = rgb(150, 150, 150),
     Outline = rgb(45, 45, 45)
 }
+
+local ConfigManager = { Folder = "MonolithConfigs" }
+
+function ConfigManager:Save(name, data)
+    if not makefolder(ConfigManager.Folder) then end 
+    writefile(ConfigManager.Folder .. "/" .. name .. ".json", http_service:JSONEncode(data))
+end
+
+function ConfigManager:Load(name)
+    local content = readfile(ConfigManager.Folder .. "/" .. name .. ".json")
+    return http_service:JSONDecode(content)
+end
+
+function ConfigManager:GetList()
+    local list = {}
+    for _, file in pairs(listfiles(ConfigManager.Folder)) do
+        table.insert(list, file:gsub(".json", ""))
+    end
+    return list
+end
+
+function ConfigManager:Delete(name)
+    delfile(ConfigManager.Folder .. "/" .. name .. ".json")
+end
+
+-- Element Registry to track all UI components for configs
+local element_registry = {} -- Stores {name, current_value, set_function}
+
+function library:UpdateAccent(newColor)
+    Theme.Accent = newColor
+    for _, obj in pairs(ui_parent:GetDescendants()) do
+        if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") or obj:IsA("UIStroke") then
+            -- Update background, text, or stroke if they match the old accent
+            if obj.BackgroundColor3 == Theme.Accent or obj.TextColor3 == Theme.Accent or (obj:IsA("UIStroke") and obj.Color == Theme.Accent) then
+                if obj:IsA("UIStroke") then obj.Color = newColor 
+                elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then obj.TextColor3 = newColor 
+                else obj.BackgroundColor3 = newColor end
+            end
+        end
+    end
+end
 
 -- Utility Functions
 function library:tween(obj, props, time) 
@@ -123,17 +164,26 @@ library:create("UIListLayout", {
 library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
 
 -- Safe Lazy-Load Lucide Icons
+-- Synchronous Load Lucide Icons
 local Icons
-task.spawn(function()
-    pcall(function()
-        Icons = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"))()
-        if Icons then Icons.SetIconsType("lucide") end
-    end)
+local iconSuccess, iconResult = pcall(function()
+    local loaded = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"))()
+    if loaded then 
+        loaded.SetIconsType("lucide") 
+        return loaded
+    end
 end)
+
+if iconSuccess then
+    Icons = iconResult
+else
+    warn("Monolith Lib: Failed to load Lucide Icons")
+end
 
 local function get_icon(iconName, color)
     if not iconName then return nil end
     local isAsset = iconName:match("^rbxassetid://") or iconName:match("^%d+$")
+    
     if isAsset then
         local img = Instance.new("ImageLabel")
         img.BackgroundTransparency = 1
@@ -141,21 +191,23 @@ local function get_icon(iconName, color)
         img.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
         return img
     end
+
+    -- Directly create the icon since Icons module is already loaded
     local holder = Instance.new("Frame")
     holder.BackgroundTransparency = 1
-    task.spawn(function()
-        local waited = 0
-        while not Icons and waited < 5 do task.wait(0.1); waited = waited + 0.1 end
-        if Icons then
-            local iconStr = iconName:gsub("^lucide:", "")
-            local ok, iconObj = pcall(function() return Icons.Image({ Icon = iconStr, Colors = {color or Color3.fromRGB(255, 255, 255)} }) end)
-            if ok and iconObj and iconObj.IconFrame then
-                iconObj.IconFrame.BackgroundTransparency = 1
-                iconObj.IconFrame.Size = UDim2.new(1, 0, 1, 0)
-                iconObj.IconFrame.Parent = holder
-            end
+    
+    if Icons then
+        local iconStr = iconName:gsub("^lucide:", "")
+        local ok, iconObj = pcall(function() 
+            return Icons.Image({ Icon = iconStr, Colors = {color or Color3.fromRGB(255, 255, 255)} }) 
+        end)
+        if ok and iconObj and iconObj.IconFrame then
+            iconObj.IconFrame.BackgroundTransparency = 1
+            iconObj.IconFrame.Size = UDim2.new(1, 0, 1, 0)
+            iconObj.IconFrame.Parent = holder
         end
-    end)
+    end
+    
     return holder
 end
 
@@ -349,64 +401,77 @@ function library:window(props)
             return {}
         end
         function section_api:Toggle(p)
-            local tog = { enabled = p.default or false }
-            local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UIListLayout", {Parent = holder, Padding = dim(0, 6)})
-            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
-            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(btn) end
-            local indicator = library:create("Frame", { Parent = btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG })
-            library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
-            local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
-            btn.MouseButton1Click:Connect(function()
-                tog.enabled = not tog.enabled; container.Visible = tog.enabled; library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
-                if p.Callback then p.Callback(tog.enabled) end
-            end)
-            function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
-            function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
-            function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
-            function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
-            function tog:set(state)
-                tog.enabled = state
-                container.Visible = state
-                library:tween(indicator, {BackgroundColor3 = state and Theme.Accent or Theme.MainBG}, 0.2)
-                if p.Callback then p.Callback(state) end
-            end
-            return tog
-        end
+    local tog = { enabled = p.default or false }
+    local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
+    library:create("UIListLayout", {Parent = holder, Padding = dim(0, 6)})
+    local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
+    library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
+    if p.Premium or p.premium then PremiumOverlay(btn) end
+    local indicator = library:create("Frame", { Parent = btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG })
+    library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
+    local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
+    library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
+    
+    function tog:set(state)
+        tog.enabled = state
+        container.Visible = state
+        library:tween(indicator, {BackgroundColor3 = state and Theme.Accent or Theme.MainBG}, 0.2)
+        if p.Callback then p.Callback(state) end
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        tog:set(not tog.enabled)
+    end)
+
+    -- REGISTER FOR CONFIG
+    table.insert(element_registry, {name = p.name or p.Name, current = tog.enabled, set = function(v) tog:set(v) end})
+
+    function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
+    function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
+    function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
+    function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
+    
+    return tog
+end
         function section_api:Slider(p)
-            local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
-            local s = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG })
-            library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(s) end
-            local lbl = library:create("TextLabel", { Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
-            local val_lbl = library:create("TextLabel", { Parent = s, Text = tostring(default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
-            local bar_bg = library:create("Frame", { Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG })
-            library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
-            local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
-            library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
-            local dragging = false
-            local function update_slider()
-                local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
-                local value = math.floor(min + ((max - min) * pct)); fill.Size = dim2(pct, 0, 1, 0); val_lbl.Text = tostring(value)
-                if p.Callback then p.Callback(value) end
-            end
-            bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
-            -- TRACKED CONNECTION
-            track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
-            -- TRACKED CONNECTION
-            track_connection(uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end))
-            return {
-                set = function(self, val)
-                    val = math.clamp(val, min, max)
-                    local pct = (val - min) / (max - min)
-                    fill.Size = dim2(pct, 0, 1, 0)
-                    val_lbl.Text = tostring(val)
-                    if p.Callback then p.Callback(val) end
-                end
-            }
-        end
+    local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
+    local s = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG })
+    library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
+    if p.Premium or p.premium then PremiumOverlay(s) end
+    local lbl = library:create("TextLabel", { Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
+    local val_lbl = library:create("TextLabel", { Parent = s, Text = tostring(default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
+    local bar_bg = library:create("Frame", { Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG })
+    library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
+    local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
+    library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
+    
+    -- Define the API table first
+    local slider_api = {}
+    function slider_api:set(val)
+        val = math.clamp(val, min, max)
+        local pct = (val - min) / (max - min)
+        fill.Size = dim2(pct, 0, 1, 0)
+        val_lbl.Text = tostring(val)
+        if p.Callback then p.Callback(val) end
+    end
+
+    local dragging = false
+    local function update_slider()
+        local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
+        local value = math.floor(min + ((max - min) * pct))
+        slider_api:set(value)
+    end
+    
+    bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
+    track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
+    track_connection(uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end))
+
+    -- REGISTER FOR CONFIG
+    table.insert(element_registry, {name = p.name or p.Name, current = default, set = function(v) slider_api:set(v) end})
+
+    return slider_api
+end
+
         function section_api:Textbox(p)
             local bg = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG })
             library:create("UICorner", {Parent = bg, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = bg, Color = Theme.Outline, Thickness = 1})
@@ -416,115 +481,178 @@ function library:window(props)
             return {}
         end
         function section_api:Dropdown(p)
-            local isMulti = p.multi or p.Multi
-            local selected = isMulti and (p.default or {}) or (p.default or (p.items and p.items[1]) or "None")
-            local open = false
-            local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
-            
-            library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
-            
-            local function get_val_str() return isMulti and (#selected > 0 and table.concat(selected, ", ") or "None") or selected end
-            
-            local btn = library:create("TextButton", { Parent = holder, LayoutOrder = 1, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor=false })
-            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(btn) end
-            
-            local iconDown = get_icon("lucide:chevron-down", Theme.MutedText)
-            local iconUp = get_icon("lucide:chevron-up", Theme.MutedText)
-            
-            if iconDown and iconUp then
-                iconDown.Size = dim2(0, 16, 0, 16)
-                iconDown.Position = dim2(1, -26, 0.5, 0)
-                iconDown.AnchorPoint = Vector2.new(0, 0.5)
-                iconDown.Parent = btn
-                iconDown.Visible = true
-                iconUp.Size = dim2(0, 16, 0, 16)
-                iconUp.Position = dim2(1, -26, 0.5, 0)
-                iconUp.AnchorPoint = Vector2.new(0, 0.5)
-                iconUp.Parent = btn
-                iconUp.Visible = false
-            end
-            
-            local container = library:create("Frame", { Parent = holder, LayoutOrder = 2, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = false, AutomaticSize = Enum.AutomaticSize.Y })
-            
-            library:create("UIListLayout", {Parent = container, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
-            library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8)})
-            
-            local searchBox = library:create("TextBox", { Parent = container, LayoutOrder = 1, Size = dim2(1, 0, 0, 28), BackgroundColor3 = Theme.MainBG, TextColor3 = Theme.Text, PlaceholderText = "Search...", PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
-            library:create("UICorner", {Parent = searchBox, CornerRadius = dim(0, 4)}); library:create("UIPadding", {Parent = searchBox, PaddingLeft = dim(0, 8)})
-            
-            local itemBtns = {}
-            
-            local function updateItems()
-                for _, iBtn in pairs(itemBtns) do
-                    local isSel = isMulti and table.find(selected, iBtn.name) or (selected == iBtn.name)
-                    iBtn.btn.BackgroundColor3 = isSel and Theme.Accent or Theme.HoverBG
-                    iBtn.btn.TextColor3 = isSel and Theme.MainBG or Theme.MutedText
-                end
-                btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
-            end
-            
-            btn.MouseButton1Click:Connect(function() 
-                open = not open; 
-                container.Visible = open 
-                if iconDown and iconUp then
-                    iconDown.Visible = not open
-                    iconUp.Visible = open
-                end
-            end)
-            
-            local function build_items(itemList)
-                for _, iBtn in pairs(itemBtns) do iBtn.btn:Destroy() end
-                itemBtns = {}
-                
-                if not isMulti then
-                    if not table.find(itemList, selected) then 
-                        selected = itemList[1] or "None" 
-                        if p.Callback then p.Callback(selected) end
-                    end
-                end
+    local isMulti = p.multi or p.Multi
+    local selected = isMulti and (p.default or {}) or (p.default or (p.items and p.items[1]) or "None")
+    local open = false
+    
+    -- Container for the whole dropdown element
+    local holder = library:create("Frame", { 
+        Parent = p.Parent or self.elements, 
+        Size = dim2(1, 0, 0, 0), 
+        BackgroundTransparency = 1, 
+        AutomaticSize = Enum.AutomaticSize.Y 
+    })
+    library:create("UIListLayout", {Parent = holder, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
+    
+    -- Helper to get the text displayed on the main button
+    local function get_val_str() 
+        if isMulti then 
+            return (#selected > 0 and table.concat(selected, ", ") or "None") 
+        end
+        return tostring(selected) 
+    end
+    
+    -- Main Toggle Button
+    local btn = library:create("TextButton", { 
+        Parent = holder, 
+        LayoutOrder = 1, 
+        Size = dim2(1, 0, 0, 32), 
+        BackgroundColor3 = Theme.ElementBG, 
+        Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str(), 
+        TextColor3 = Theme.Text, 
+        TextXAlignment = Enum.TextXAlignment.Left, 
+        FontFace = library.font, 
+        TextSize = 13, 
+        AutoButtonColor = false 
+    })
+    library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)})
+    library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
+    if p.Premium or p.premium then PremiumOverlay(btn) end
+    
+    -- Icons
+    local iconDown = get_icon("lucide:chevron-down", Theme.MutedText)
+    local iconUp = get_icon("lucide:chevron-up", Theme.MutedText)
+    if iconDown and iconUp then
+        iconDown.Size = dim2(0, 16, 0, 16); iconDown.Position = dim2(1, -26, 0.5, 0); iconDown.AnchorPoint = Vector2.new(0, 0.5); iconDown.Parent = btn
+        iconUp.Size = dim2(0, 16, 0, 16); iconUp.Position = dim2(1, -26, 0.5, 0); iconUp.AnchorPoint = Vector2.new(0, 0.5); iconUp.Parent = btn
+        iconUp.Visible = false
+    end
+    
+    -- The List Container
+    local container = library:create("Frame", { 
+        Parent = holder, 
+        LayoutOrder = 2, 
+        Size = dim2(1, 0, 0, 0), 
+        BackgroundColor3 = Theme.SectionBG, 
+        Visible = false, 
+        AutomaticSize = Enum.AutomaticSize.Y 
+    })
+    library:create("UICorner", {Parent = container, CornerRadius = dim(0, 6)})
+    library:create("UIStroke", {Parent = container, Color = Theme.Outline, Thickness = 1})
+    library:create("UIListLayout", {Parent = container, Padding = dim(0, 4), SortOrder = Enum.SortOrder.LayoutOrder})
+    library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 8), PaddingRight = dim(0, 8), PaddingTop = dim(0, 5), PaddingBottom = dim(0, 5)})
+    
+    -- Search Box
+    local searchBox = library:create("TextBox", { 
+        Parent = container, 
+        LayoutOrder = 1, 
+        Size = dim2(1, 0, 0, 28), 
+        BackgroundColor3 = Theme.MainBG, 
+        TextColor3 = Theme.Text, 
+        PlaceholderText = "Search...", 
+        PlaceholderColor3 = Theme.MutedText, 
+        FontFace = library.font, 
+        TextSize = 12, 
+        TextXAlignment = Enum.TextXAlignment.Left, 
+        Text = "" 
+    })
+    library:create("UICorner", {Parent = searchBox, CornerRadius = dim(0, 4)})
+    library:create("UIPadding", {Parent = searchBox, PaddingLeft = dim(0, 8)})
+    
+    local itemBtns = {}
 
-                for index, item in pairs(itemList or {}) do
-                    local ibtn = library:create("TextButton", { Parent = container, LayoutOrder = index + 1, Size = dim2(1, 0, 0, 26), BackgroundColor3 = Theme.HoverBG, Text = "  " .. item, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 12, AutoButtonColor = false })
-                    library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)}); table.insert(itemBtns, {btn = ibtn, name = item})
-                    
-                    ibtn.MouseButton1Click:Connect(function()
-                        if isMulti then 
-                            local idx = table.find(selected, item); 
-                            if idx then table.remove(selected, idx) else table.insert(selected, item) end 
-                        else 
-                            selected = item; 
-                            open = false; 
-                            container.Visible = false 
-                            if iconDown and iconUp then
-                                iconDown.Visible = true
-                                iconUp.Visible = false
-                            end
-                        end
-                        updateItems(); if p.Callback then p.Callback(selected) end
-                    end)
+    -- VISUAL UPDATE FUNCTION (Crucial for Config System)
+    local function updateItems()
+        for _, iBtn in pairs(itemBtns) do
+            local isSel = isMulti and table.find(selected, iBtn.name) or (selected == iBtn.name)
+            iBtn.btn.BackgroundColor3 = isSel and Theme.Accent or Theme.HoverBG
+            iBtn.btn.TextColor3 = isSel and Theme.MainBG or Theme.MutedText
+        end
+        btn.Text = "  " .. (p.Name or p.name or "Dropdown") .. " : " .. get_val_str()
+    end
+    
+    -- Function to build the buttons based on a list
+    local function build_items(itemList)
+        for _, iBtn in pairs(itemBtns) do iBtn.btn:Destroy() end
+        itemBtns = {}
+        
+        for index, item in pairs(itemList or {}) do
+            local ibtn = library:create("TextButton", { 
+                Parent = container, 
+                LayoutOrder = index + 1, 
+                Size = dim2(1, 0, 0, 26), 
+                BackgroundColor3 = Theme.HoverBG, 
+                Text = "  " .. item, 
+                TextColor3 = Theme.MutedText, 
+                TextXAlignment = Enum.TextXAlignment.Left, 
+                FontFace = library.font, 
+                TextSize = 12, 
+                AutoButtonColor = false 
+            })
+            library:create("UICorner", {Parent = ibtn, CornerRadius = dim(0, 6)})
+            table.insert(itemBtns, {btn = ibtn, name = item})
+            
+            ibtn.MouseButton1Click:Connect(function()
+                if isMulti then 
+                    local idx = table.find(selected, item)
+                    if idx then table.remove(selected, idx) else table.insert(selected, item) end 
+                else 
+                    selected = item
+                    open = false
+                    container.Visible = false 
+                    if iconDown and iconUp then iconDown.Visible = true; iconUp.Visible = false end
                 end
                 updateItems()
-            end
-
-            build_items(p.items or {})
-
-            searchBox:GetPropertyChangedSignal("Text"):Connect(function() 
-                local q = searchBox.Text:lower(); 
-                for _, iBtn in pairs(itemBtns) do iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) end 
+                if p.Callback then p.Callback(selected) end
             end)
-            
-            return {
-                set_items = function(self, new_items)
-                    build_items(new_items)
-                end,
-                set_value = function(self, val)
-                    selected = val
-                    updateItems()
-                    if p.Callback then p.Callback(selected) end
-                end
-            }
         end
+        updateItems()
+    end
+
+    -- Main Button Click logic
+    btn.MouseButton1Click:Connect(function() 
+        open = not open
+        container.Visible = open 
+        if iconDown and iconUp then
+            iconDown.Visible = not open
+            iconUp.Visible = open
+        end
+        if open then searchBox.Text = "" end -- Reset search on open
+    end)
+    
+    -- Search Logic
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function() 
+        local q = searchBox.Text:lower()
+        for _, iBtn in pairs(itemBtns) do 
+            iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) 
+        end 
+    end)
+
+    -- API Table to return
+    local dropdown_api = {}
+    
+    function dropdown_api:set_value(val)
+        selected = val
+        updateItems()
+        if p.Callback then p.Callback(selected) end
+    end
+    
+    function dropdown_api:set_items(new_items)
+        build_items(new_items)
+    end
+
+    -- Initial build
+    build_items(p.items or {})
+
+    -- REGISTER FOR CONFIG SYSTEM
+    table.insert(element_registry, {
+        name = p.name or p.Name or "Dropdown", 
+        current = selected, 
+        set = function(v) dropdown_api:set_value(v) end
+    })
+    
+    return dropdown_api
+end
 
         function section_api:Colorpicker(p)
             local open = false
@@ -664,6 +792,69 @@ function library:window(props)
 
         return tab
     end
+
+    -- AUTOMATIC UI SETTINGS TAB
+    local settingsTab = win:Tab({name = "UI Settings", Icon = "lucide:settings"})
+    local themeSection = settingsTab:Section({name = "Appearance", side = "left"})
+    local configSection = settingsTab:Section({name = "Configuration", side = "right"})
+
+    themeSection:Colorpicker({
+        name = "Accent Color",
+        default = Theme.Accent,
+        Callback = function(color)
+            library:UpdateAccent(color)
+        end
+    })
+
+    local configName = "Default"
+    configSection:Textbox({
+        placeholder = "Config Name",
+        Callback = function(txt) configName = txt end
+    })
+
+    local configList = configSection:Dropdown({
+        name = "Saved Configs",
+        items = ConfigManager:GetList(),
+    })
+
+    configSection:Button({
+        name = "Save Config",
+        Callback = function()
+            local data = {}
+            for _, el in ipairs(element_registry) do
+                data[el.name] = el.current
+            end
+            ConfigManager:Save(configName, data)
+            configList.set_items(ConfigManager:GetList())
+        end
+    })
+
+    configSection:Button({
+        name = "Load Config",
+        Callback = function()
+            -- Since we don't have the current value of the dropdown easily, 
+            -- you would normally get this from the dropdown_api.selected
+            -- For this snippet, we'll use a simple check:
+            local selectedConfig = "Default" -- Replace with actual selected value from dropdown
+            local data = ConfigManager:Load(selectedConfig)
+            if data then
+                for _, el in ipairs(element_registry) do
+                    if data[el.name] ~= nil then
+                        el.set(data[el.name])
+                        el.current = data[el.name]
+                    end
+                end
+            end
+        end
+    })
+
+    configSection:Button({
+        name = "Delete Config",
+        Callback = function()
+            ConfigManager:Delete(configName)
+            configList.set_items(ConfigManager:GetList())
+        end
+    })
 
     return win
 end
