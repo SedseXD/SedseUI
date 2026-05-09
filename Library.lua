@@ -140,10 +140,15 @@ library:create("UIListLayout", {Parent = notif_container, Padding = dim(0, 10), 
 library:create("UIPadding", {Parent = notif_container, PaddingBottom = dim(0, 20), PaddingRight = dim(0, 10)})
 
 -- Synchronous Icon Load
+-- Synchronous Icon Load (SAFE)
 local Icons
 local iconSuccess, iconResult = pcall(function()
-    local loaded = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua"))()
-    if loaded then loaded.SetIconsType("lucide"); return loaded end
+    local code = game:HttpGet("https://raw.githubusercontent.com/Footagesus/Icons/main/Main-v2.lua")
+    local loader = loadstring(code)
+    if loader then 
+        local loaded = loader()
+        if loaded then loaded.SetIconsType("lucide"); return loaded end
+    end
 end)
 Icons = iconSuccess and iconResult or nil
 
