@@ -674,5 +674,47 @@ end
 
     return win
 end
+-- Add this right before the end of the Library.lua file on your GitHub:
+function library:create_notification(props)
+    local name = props.name or props.Name or "Notification"
+    local duration = props.duration or 4
+    
+    local notif = library:create("Frame", {
+        Parent = notif_container,
+        Size = dim2(1, 0, 0, 40),
+        BackgroundColor3 = Theme.ElementBG,
+        BackgroundTransparency = 1
+    })
+    library:create("UICorner", {Parent = notif, CornerRadius = dim(0, 6)})
+    local stroke = library:create("UIStroke", {Parent = notif, Color = Theme.Outline, Thickness = 1, Transparency = 1})
+    
+    local title = library:create("TextLabel", {
+        Parent = notif,
+        Size = dim2(1, -20, 1, 0),
+        Position = dim2(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = Theme.Text,
+        FontFace = library.font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTransparency = 1
+    })
+    
+    library:tween(notif, {BackgroundTransparency = 0}, 0.3)
+    library:tween(stroke, {Transparency = 0}, 0.3)
+    library:tween(title, {TextTransparency = 0}, 0.3)
+    
+    task.delay(duration, function()
+        local fade = library:tween(notif, {BackgroundTransparency = 1}, 0.5)
+        library:tween(stroke, {Transparency = 1}, 0.5)
+        library:tween(title, {TextTransparency = 1}, 0.5)
+        fade.Completed:Connect(function()
+            notif:Destroy()
+        end)
+    end)
+end
 
-return library
+-- REPLACE "return library" WITH THIS:
+return library, library
+
