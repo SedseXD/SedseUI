@@ -388,10 +388,16 @@ function library:window(props)
             library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
             local dragging = false
             local function update_slider()
-                local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
-                local value = math.floor(min + ((max - min) * pct)); fill.Size = dim2(pct, 0, 1, 0); val_lbl.Text = tostring(value)
-                if p.Callback then p.Callback(value) end
-            end
+    local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
+    local value = min + ((max - min) * pct) -- Removed math.floor
+    
+    fill.Size = dim2(pct, 0, 1, 0)
+    
+    -- Formats based on p.decimals; defaults to 0 if not provided
+    val_lbl.Text = string.format("%.%df", value, p.decimals or 0)
+    
+    if p.Callback then p.Callback(value) end
+end
             bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
             -- TRACKED CONNECTION
             track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
@@ -399,12 +405,15 @@ function library:window(props)
             track_connection(uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end))
             return {
                 set = function(self, val)
-                    val = math.clamp(val, min, max)
-                    local pct = (val - min) / (max - min)
-                    fill.Size = dim2(pct, 0, 1, 0)
-                    val_lbl.Text = tostring(val)
-                    if p.Callback then p.Callback(val) end
-                end
+    val = math.clamp(val, min, max)
+    local pct = (val - min) / (max - min)
+    fill.Size = dim2(pct, 0, 1, 0)
+    
+    -- Formats based on p.decimals; defaults to 0 if not provided
+    val_lbl.Text = string.format("%.%df", val, p.decimals or 0)
+    
+    if p.Callback then p.Callback(val) end
+end
             }
         end
         function section_api:Textbox(p)
