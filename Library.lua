@@ -377,6 +377,7 @@ function library:window(props)
         end
         function section_api:Slider(p)
             local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
+            local decimals = p.decimals or 1 -- Default to 1 decimal place
             local s = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG })
             library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(s) end
@@ -389,12 +390,10 @@ function library:window(props)
             local dragging = false
             local function update_slider()
     local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
-    local value = min + ((max - min) * pct) -- Removed math.floor
+    local value = min + ((max - min) * pct) 
     
     fill.Size = dim2(pct, 0, 1, 0)
-    
-    -- Formats based on p.decimals; defaults to 0 if not provided
-    val_lbl.Text = string.format("%.%df", value, p.decimals or 0)
+    val_lbl.Text = string.format("%.%df", value, decimals)
     
     if p.Callback then p.Callback(value) end
 end
@@ -408,9 +407,7 @@ end
     val = math.clamp(val, min, max)
     local pct = (val - min) / (max - min)
     fill.Size = dim2(pct, 0, 1, 0)
-    
-    -- Formats based on p.decimals; defaults to 0 if not provided
-    val_lbl.Text = string.format("%.%df", val, p.decimals or 0)
+    val_lbl.Text = string.format("%.%df", val, decimals)
     
     if p.Callback then p.Callback(val) end
 end
