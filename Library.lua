@@ -393,7 +393,8 @@ function library:window(props)
     local value = min + ((max - min) * pct) 
     
     fill.Size = dim2(pct, 0, 1, 0)
-    val_lbl.Text = string.format("%.%df", value, decimals)
+    -- Fix: Construct the format string first (e.g., "%.1f")
+    val_lbl.Text = string.format("%." .. decimals .. "f", value)
     
     if p.Callback then p.Callback(value) end
 end
@@ -407,7 +408,8 @@ end
     val = math.clamp(val, min, max)
     local pct = (val - min) / (max - min)
     fill.Size = dim2(pct, 0, 1, 0)
-    val_lbl.Text = string.format("%.%df", val, decimals)
+    -- Fix: Construct the format string first (e.g., "%.1f")
+    val_lbl.Text = string.format("%." .. decimals .. "f", val)
     
     if p.Callback then p.Callback(val) end
 end
