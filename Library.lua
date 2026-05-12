@@ -378,41 +378,59 @@ function library:window(props)
         function section_api:Slider(p)
             local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
             local decimals = p.decimals or 1 -- Default to 1 decimal place
+            
             local s = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG })
             library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(s) end
+            
             local lbl = library:create("TextLabel", { Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
-            local val_lbl = library:create("TextLabel", { Parent = s, Text = tostring(default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
+            local val_lbl = library:create("TextLabel", { Parent = s, Text = string.format("%."..decimals.."f", default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
+            
             local bar_bg = library:create("Frame", { Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG })
             library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
+            
             local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
             library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
+            
             local dragging = false
-            local function update_slider()
-    local pct = math.clamp((uis:GetMouseLocation().X - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
-    local value = min + ((max - min) * pct) 
-    
-    fill.Size = dim2(pct, 0, 1, 0)
-    -- Fix: Construct the format string first (e.g., "%.1f")
-    val_lbl.Text = string.format("%." .. decimals .. "f", value)
-    
-    if p.Callback then p.Callback(value) end
-end
-            bar_bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; update_slider() end end)
-            -- TRACKED CONNECTION
-            track_connection(uis.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
-            -- TRACKED CONNECTION
-            track_connection(uis.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then update_slider() end end))
+            
+            local function update_slider(input_x)
+                local pct = math.clamp((input_x - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
+                local value = min + ((max - min) * pct) 
+                
+                fill.Size = dim2(pct, 0, 1, 0)
+                val_lbl.Text = string.format("%." .. decimals .. "f", value)
+                
+                if p.Callback then p.Callback(value) end
+            end
+
+            bar_bg.InputBegan:Connect(function(i) 
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+                    dragging = true 
+                    update_slider(i.Position.X) 
+                end 
+            end)
+
+            track_connection(uis.InputEnded:Connect(function(i) 
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+                    dragging = false 
+                end 
+            end))
+
+            track_connection(uis.InputChanged:Connect(function(i) 
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then 
+                    update_slider(i.Position.X) 
+                end 
+            end))
+
             return {
                 set = function(self, val)
-    val = math.clamp(val, min, max)
-    local pct = (val - min) / (max - min)
-    fill.Size = dim2(pct, 0, 1, 0)
-    -- Fix: Construct the format string first (e.g., "%.1f")
-    val_lbl.Text = string.format("%." .. decimals .. "f", val)
-    
-    if p.Callback then p.Callback(val) end
-end
+                    val = math.clamp(val, min, max)
+                    local pct = (val - min) / (max - min)
+                    fill.Size = dim2(pct, 0, 1, 0)
+                    val_lbl.Text = string.format("%." .. decimals .. "f", val)
+                    if p.Callback then p.Callback(val) end
+                end
             }
         end
         function section_api:Textbox(p)
