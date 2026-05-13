@@ -265,8 +265,26 @@ function library:window(props)
     closeBtn.MouseLeave:Connect(function() library:tween(closeBtn, {BackgroundColor3 = Theme.TopbarBG}, 0.15); color_icon(closeIconObj, Theme.MutedText) end)
     closeBtn.MouseButton1Click:Connect(function() screen:Destroy() end)
 
-    local sidebar = library:create("Frame", { Parent = main, Position = dim2(0, 0, 0, 41), Size = dim2(0, 140, 1, -41), BackgroundColor3 = Theme.SidebarBG, BorderSizePixel = 0 })
-    library:create("Frame", {Parent = sidebar, Size = dim2(0, 1), Position = dim2(1, 0, 0, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0})
+    local sidebar = library:create("ScrollingFrame", { 
+    Parent = main, 
+    Position = dim2(0, 0, 0, 41), 
+    Size = dim2(0, 140, 1, -41), 
+    BackgroundColor3 = Theme.SidebarBG, 
+    BorderSizePixel = 0,
+    -- Scrolling Properties
+    ScrollBarThickness = 2, -- Make it thin for a clean look
+    ScrollBarImageColor3 = Theme.Outline,
+    CanvasSize = dim2(0, 0, 0, 0), 
+    AutomaticCanvasSize = Enum.AutomaticSize.Y, -- This allows the scroll wheel to work as you add tabs
+    ZIndex = 1
+})
+    -- This replaces the "Frame" border with a fixed UIStroke
+library:create("UIStroke", {
+    Parent = sidebar, 
+    Color = Theme.Outline, 
+    Thickness = 1, 
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+})
     local page_holder = library:create("Frame", { Parent = main, Position = dim2(0, 141, 0, 41), Size = dim2(1, -141, 1, -41), BackgroundTransparency = 1 })
     library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center})
     library:create("UIPadding", {Parent = sidebar, PaddingTop = dim(0, 10)})
