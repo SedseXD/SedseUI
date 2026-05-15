@@ -315,7 +315,10 @@ library:create("UIStroke", {
         local state = (type(a) == "boolean") and a or b; if state == nil then state = not main.Visible end; main.Visible = state
     end
     -- TRACKED CONNECTION
-    track_connection(uis.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.RightControl then win.toggle_menu() end end))
+    local toggleKey = Enum.KeyCode.RightControl
+track_connection(uis.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == toggleKey then win.toggle_menu() end
+end))
 
     if props.Loading then
         local bootCoroutine = BootSequence(main, props.name or "Nebula UI")
@@ -716,7 +719,145 @@ end
         return tab
     end
 
-    return win
+    -- ╔══════════════════════════════════════════╗
+-- ║        AUTO UI SETTINGS TAB             ║
+-- ╚══════════════════════════════════════════╝
+do
+    -- Scans all ScreenGui descendants and retints anything matching old_color
+    local function retint(old_color, new_color)
+        local epsilon = 0.008
+        local function matches(c)
+            return math.abs(c.R - old_color.R) < epsilon
+               and math.abs(c.G - old_color.G) < epsilon
+               and math.abs(c.B - old_color.B) < epsilon
+        end
+        for _, v in ipairs(screen:GetDescendants()) do
+            if v:IsA("GuiObject") and matches(v.BackgroundColor3) then
+                library:tween(v, { BackgroundColor3 = new_color }, 0.3)
+            end
+            if (v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox")) and matches(v.TextColor3) then
+                library:tween(v, { TextColor3 = new_color }, 0.3)
+            end
+            if v:IsA("UIStroke") and matches(v.Color) then
+                library:tween(v, { Color = new_color }, 0.3)
+            end
+            if (v:IsA("ImageLabel") or v:IsA("ImageButton")) and matches(v.ImageColor3) then
+                library:tween(v, { ImageColor3 = new_color }, 0.3)
+            end
+        end
+    end
+
+    -- Snapshot defaults so we can reset later
+    local defaultTheme = {}
+    for k, v in pairs(Theme) do defaultTheme[k] = v end
+
+    -- Create the tab
+    local st = win:Tab({ name = "UI Settings", icon = "lucide:settings-2" })
+
+    -- ── LEFT COLUMN: Colors ──────────────────────────────────────────────
+    local colorSection = st:Section({ name = "Colors", side = "left" })
+
+    colorSection:Colorpicker({
+        name = "Accent Color",
+        default = Theme.Accent,
+        Callback = function(color)
+            local old = Theme.Accent
+            Theme.Accent = color
+            retint(old, color)
+        end
+    })
+
+    colorSection:Colorpicker({
+        name = "Main Background",
+        default = Theme.MainBG,
+        Callback = function(color)
+            local old = Theme.MainBG
+            Theme.MainBG = color
+            retint(old, color)
+        end
+    })
+
+    colorSection:Colorpicker({
+        name = "Sidebar Color",
+        default = Theme.SidebarBG,
+        Callback = function(color)
+            local old = Theme.SidebarBG
+            Theme.SidebarBG = color
+            retint(old, color)
+        end
+    })
+
+    colorSection:Colorpicker({
+        name = "Element Color",
+        default = Theme.ElementBG,
+        Callback = function(color)
+            local old = Theme.ElementBG
+            Theme.ElementBG = color
+            retint(old, color)
+        end
+    })
+
+    colorSection:Colorpicker({
+        name = "Text Color",
+        default = Theme.Text,
+        Callback = function(color)
+            local old = Theme.Text
+            Theme.Text = color
+            retint(old, color)
+        end
+    })
+
+    -- ── RIGHT COLUMN: Controls & Misc ────────────────────────────────────
+    local controlSection = st:Section({ name = "Controls", side = "right" })
+
+    controlSection:Keybind({
+        name = "Toggle Menu",
+        default = Enum.KeyCode.RightControl,
+        Callback = function(key)
+            toggleKey = key  -- updates the dynamic variable from Change 1
+        end
+    })
+
+    -- UI Opacity slider (tweens the whole window transparency)
+    controlSection:Slider({
+        name = "UI Opacity",
+        min = 0,
+        max = 100,
+        default = 100,
+        decimals = 0,
+        Callback = function(val)
+            local t = 1 - (val / 100)
+            library:tween(main, { BackgroundTransparency = t }, 0.2)
+        end
+    })
+
+    -- Misc section
+    local miscSection = st:Section({ name = "Miscellaneous", side = "right" })
+
+    miscSection:Button({
+        name = "Reset Colors to Default",
+        Callback = function()
+            for k, v in pairs(defaultTheme) do
+                local old = Theme[k]
+                if typeof(old) == "Color3" then
+                    Theme[k] = v
+                    retint(old, v)
+                end
+            end
+            library:create_notification({ name = "Theme reset to defaults.", duration = 3 })
+        end
+    })
+
+    miscSection:Button({
+        name = "Close Menu",
+        Callback = function()
+            win.toggle_menu(false)
+        end
+    })
+end
+-- ╚══ END UI SETTINGS TAB ══╝
+
+return win
 end
 -- Add this right before the end of the Library.lua file on your GitHub:
 function library:create_notification(props)
