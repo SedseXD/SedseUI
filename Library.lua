@@ -8,6 +8,7 @@ local tween_service = game:GetService("TweenService")
 local http_service = game:GetService("HttpService")
 local gui_service = game:GetService("GuiService")
 
+
 -- 1. FIRST: Define helper functions that everything else depends on
 local function get_ui_parent()
     local success, parent = pcall(function() return gethui and gethui() end)
