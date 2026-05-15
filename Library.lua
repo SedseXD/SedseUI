@@ -855,7 +855,7 @@ function library:window(props)
     -- ══════════════════════════════════════════
     -- UI SETTINGS TAB (deferred so it's always last)
     -- ══════════════════════════════════════════
-    task.defer(function()
+    
 
         local function colorMatches(a, b)
             return math.abs(a.R - b.R) < 0.01
@@ -986,7 +986,7 @@ function library:window(props)
             Callback = function() win.toggle_menu(false) end
         })
 
-    end) -- end task.defer
+    
 
     return win
 end
