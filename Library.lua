@@ -288,7 +288,8 @@ library:create("UIStroke", {
     local page_holder = library:create("Frame", { Parent = main, Position = dim2(0, 141, 0, 41), Size = dim2(1, -141, 1, -41), BackgroundTransparency = 1 })
     library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center})
     library:create("UIPadding", {Parent = sidebar, PaddingTop = dim(0, 10)})
-
+    local all_toggles = {}
+    local toggleKey = Enum.KeyCode.RightControl
     local resizeHandle = library:create("TextButton", { Parent = main, Size = dim2(0, 20, 0, 20), Position = dim2(1, -20, 1, -20), BackgroundTransparency = 1, Text = "↘", TextColor3 = Theme.MutedText, TextSize = 14, FontFace = library.font, ZIndex = 100 })
     local resizing, rStartPos, rStartSize
     resizeHandle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then resizing = true; rStartPos = input.Position; rStartSize = main.Size end end)
@@ -370,98 +371,124 @@ end))
             return {}
         end
         function section_api:Toggle(p)
-            local tog = { enabled = p.default or false }
-            local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UIListLayout", {Parent = holder, Padding = dim(0, 6)})
-            local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
-            library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(btn) end
-            local indicator = library:create("Frame", { Parent = btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG })
-            library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
-            local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
-            library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
-            btn.MouseButton1Click:Connect(function()
-                tog.enabled = not tog.enabled; container.Visible = tog.enabled; library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
-                if p.Callback then p.Callback(tog.enabled) end
-            end)
-            function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
-            function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
-            function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
-            function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
-            function tog:set(state)
-                tog.enabled = state
-                container.Visible = state
-                library:tween(indicator, {BackgroundColor3 = state and Theme.Accent or Theme.MainBG}, 0.2)
-                if p.Callback then p.Callback(state) end
-            end
-            return tog
+    local tog = { enabled = p.default or false }
+    local tog_key = Enum.KeyCode.Unknown
+    local tog_picking = false
+
+    local holder = library:create("Frame", {
+        Parent = p.Parent or self.elements,
+        Size = dim2(1, 0, 0, 0),
+        BackgroundTransparency = 1,
+        AutomaticSize = Enum.AutomaticSize.Y
+    })
+    library:create("UIListLayout", { Parent = holder, Padding = dim(0, 6) })
+
+    -- Row: [KB][  Toggle Name ──────── ■ ]
+    local row = library:create("Frame", {
+        Parent = holder,
+        Size = dim2(1, 0, 0, 32),
+        BackgroundTransparency = 1
+    })
+
+    local kbBtn = library:create("TextButton", {
+        Parent = row,
+        Size = dim2(0, 32, 1, 0),
+        BackgroundColor3 = Theme.ElementBG,
+        Text = "[?]",
+        TextColor3 = Theme.MutedText,
+        FontFace = library.font,
+        TextSize = 9,
+        AutoButtonColor = false
+    })
+    library:create("UICorner", { Parent = kbBtn, CornerRadius = dim(0, 6) })
+    library:create("UIStroke", { Parent = kbBtn, Color = Theme.Outline, Thickness = 1 })
+
+    local btn = library:create("TextButton", {
+        Parent = row,
+        Size = dim2(1, -38, 1, 0),
+        Position = dim2(0, 38, 0, 0),
+        BackgroundColor3 = Theme.ElementBG,
+        Text = "  " .. (p.name or p.Name or "Toggle"),
+        TextColor3 = Theme.Text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        FontFace = library.font,
+        TextSize = 13,
+        AutoButtonColor = false
+    })
+    library:create("UICorner", { Parent = btn, CornerRadius = dim(0, 6) })
+    library:create("UIStroke", { Parent = btn, Color = Theme.Outline, Thickness = 1 })
+
+    if p.Premium or p.premium then PremiumOverlay(btn) end
+
+    local indicator = library:create("Frame", {
+        Parent = btn,
+        Size = dim2(0, 16, 0, 16),
+        Position = dim2(1, -24, 0.5, -8),
+        BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG
+    })
+    library:create("UICorner", { Parent = indicator, CornerRadius = dim(0, 4) })
+    library:create("UIStroke", { Parent = indicator, Color = Theme.Outline, Thickness = 1 })
+
+    local container = library:create("Frame", {
+        Parent = holder,
+        Size = dim2(1, 0, 0, 0),
+        BackgroundTransparency = 1,
+        Visible = tog.enabled,
+        AutomaticSize = Enum.AutomaticSize.Y
+    })
+    library:create("UIListLayout", { Parent = container, Padding = dim(0, 6) })
+    library:create("UIPadding", { Parent = container, PaddingLeft = dim(0, 14) })
+
+    -- Central fire function used by click, keybind, AND float button
+    local function fire_toggle()
+        tog.enabled = not tog.enabled
+        container.Visible = tog.enabled
+        library:tween(indicator, { BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG }, 0.2)
+        if p.Callback then p.Callback(tog.enabled) end
+    end
+
+    btn.MouseButton1Click:Connect(fire_toggle)
+
+    -- Keybind picking
+    kbBtn.MouseButton1Click:Connect(function()
+        tog_picking = true
+        kbBtn.Text = "···"
+        library:tween(kbBtn, { BackgroundColor3 = Theme.HoverBG }, 0.15)
+    end)
+
+    track_connection(uis.InputBegan:Connect(function(input, gpe)
+        if tog_picking and input.UserInputType == Enum.UserInputType.Keyboard then
+            tog_picking = false
+            tog_key = input.KeyCode
+            local n = tog_key.Name
+            kbBtn.Text = #n > 4 and n:sub(1, 4) or n
+            library:tween(kbBtn, { BackgroundColor3 = Theme.ElementBG }, 0.15)
+        elseif not gpe and tog_key ~= Enum.KeyCode.Unknown and input.KeyCode == tog_key then
+            fire_toggle()
         end
-        function section_api:Slider(p)
-            local min, max, default = p.min or 0, p.max or 100, p.default or p.min or 0
-            local decimals = p.decimals or 1 -- Default to 1 decimal place
-            
-            local s = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 50), BackgroundColor3 = Theme.ElementBG })
-            library:create("UICorner", {Parent = s, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = s, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(s) end
-            
-            local lbl = library:create("TextLabel", { Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
-            local val_lbl = library:create("TextLabel", { Parent = s, Text = string.format("%."..decimals.."f", default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
-            
-            local bar_bg = library:create("Frame", { Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG })
-            library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
-            
-            local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
-            library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
-            
-            local dragging = false
-            
-            local function update_slider(input_x)
-                local pct = math.clamp((input_x - bar_bg.AbsolutePosition.X) / bar_bg.AbsoluteSize.X, 0, 1)
-                local value = min + ((max - min) * pct) 
-                
-                fill.Size = dim2(pct, 0, 1, 0)
-                val_lbl.Text = string.format("%." .. decimals .. "f", value)
-                
-                if p.Callback then p.Callback(value) end
-            end
+    end))
 
-            bar_bg.InputBegan:Connect(function(i) 
-                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
-                    dragging = true 
-                    update_slider(i.Position.X) 
-                end 
-            end)
+    -- Register in the global toggle list for mobile float buttons
+    local tog_entry = {
+        name = p.name or p.Name or "Toggle",
+        fire = fire_toggle,
+        tog = tog,
+        float_btn = nil
+    }
+    table.insert(all_toggles, tog_entry)
 
-            track_connection(uis.InputEnded:Connect(function(i) 
-                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
-                    dragging = false 
-                end 
-            end))
-
-            track_connection(uis.InputChanged:Connect(function(i) 
-                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then 
-                    update_slider(i.Position.X) 
-                end 
-            end))
-
-            return {
-                set = function(self, val)
-                    val = math.clamp(val, min, max)
-                    local pct = (val - min) / (max - min)
-                    fill.Size = dim2(pct, 0, 1, 0)
-                    val_lbl.Text = string.format("%." .. decimals .. "f", val)
-                    if p.Callback then p.Callback(val) end
-                end
-            }
-        end
-        function section_api:Textbox(p)
-            local bg = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG })
-            library:create("UICorner", {Parent = bg, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = bg, Color = Theme.Outline, Thickness = 1})
-            if p.Premium or p.premium then PremiumOverlay(bg) end
-            local box = library:create("TextBox", { Parent = bg, Size = dim2(1, -16, 1, 0), Position = dim2(0, 8, 0, 0), BackgroundTransparency = 1, Text = "", PlaceholderText = p.placeholder or p.Placeholder or (p.name or "Textbox"), TextColor3 = Theme.Text, PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left })
-            box.FocusLost:Connect(function() if p.Callback then p.Callback(box.Text) end end)
-            return {}
-        end
+    function tog:Slider(np) np = np or {}; np.Parent = container; return section_api:Slider(np) end
+    function tog:Dropdown(np) np = np or {}; np.Parent = container; return section_api:Dropdown(np) end
+    function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
+    function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
+    function tog:set(state)
+        tog.enabled = state
+        container.Visible = state
+        library:tween(indicator, { BackgroundColor3 = state and Theme.Accent or Theme.MainBG }, 0.2)
+        if p.Callback then p.Callback(state) end
+    end
+    return tog
+end
         function section_api:Dropdown(p)
             local isMulti = p.multi or p.Multi
             local selected = isMulti and (p.default or {}) or (p.default or (p.items and p.items[1]) or "None")
@@ -719,130 +746,115 @@ end
         return tab
     end
 
-    -- ╔══════════════════════════════════════════╗
--- ║        AUTO UI SETTINGS TAB             ║
+-- ╔══════════════════════════════════════════╗
+-- ║   UI SETTINGS (always last, deferred)   ║
 -- ╚══════════════════════════════════════════╝
-do
-    -- Scans all ScreenGui descendants and retints anything matching old_color
-    local function retint(old_color, new_color)
-        local epsilon = 0.008
-        local function matches(c)
-            return math.abs(c.R - old_color.R) < epsilon
-               and math.abs(c.G - old_color.G) < epsilon
-               and math.abs(c.B - old_color.B) < epsilon
-        end
+task.defer(function()
+
+    -- Robust color matcher (epsilon avoids float noise; 0.01 ≈ 2.5/255)
+    local function colorMatches(a, b)
+        return math.abs(a.R - b.R) < 0.01
+           and math.abs(a.G - b.G) < 0.01
+           and math.abs(a.B - b.B) < 0.01
+    end
+
+    -- Scans every descendant and recolors anything that matched the old value.
+    -- UIStroke uses direct assignment (TweenService doesn't reliably tween it).
+    local function apply_theme(key, new_color)
+        local old = Theme[key]
+        Theme[key] = new_color
         for _, v in ipairs(screen:GetDescendants()) do
-            if v:IsA("GuiObject") and matches(v.BackgroundColor3) then
-                library:tween(v, { BackgroundColor3 = new_color }, 0.3)
-            end
-            if (v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox")) and matches(v.TextColor3) then
-                library:tween(v, { TextColor3 = new_color }, 0.3)
-            end
-            if v:IsA("UIStroke") and matches(v.Color) then
-                library:tween(v, { Color = new_color }, 0.3)
-            end
-            if (v:IsA("ImageLabel") or v:IsA("ImageButton")) and matches(v.ImageColor3) then
-                library:tween(v, { ImageColor3 = new_color }, 0.3)
-            end
+            pcall(function()
+                if v:IsA("UIStroke") then
+                    if colorMatches(v.Color, old) then v.Color = new_color end
+                elseif v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+                    if colorMatches(v.BackgroundColor3, old) then
+                        library:tween(v, { BackgroundColor3 = new_color }, 0.2)
+                    end
+                    if colorMatches(v.TextColor3, old) then
+                        library:tween(v, { TextColor3 = new_color }, 0.2)
+                    end
+                elseif v:IsA("ImageLabel") or v:IsA("ImageButton") then
+                    if colorMatches(v.BackgroundColor3, old) then
+                        library:tween(v, { BackgroundColor3 = new_color }, 0.2)
+                    end
+                    if colorMatches(v.ImageColor3, old) then
+                        library:tween(v, { ImageColor3 = new_color }, 0.2)
+                    end
+                elseif v:IsA("GuiObject") then
+                    if colorMatches(v.BackgroundColor3, old) then
+                        library:tween(v, { BackgroundColor3 = new_color }, 0.2)
+                    end
+                end
+            end)
         end
     end
 
-    -- Snapshot defaults so we can reset later
     local defaultTheme = {}
     for k, v in pairs(Theme) do defaultTheme[k] = v end
 
-    -- Create the tab
     local st = win:Tab({ name = "UI Settings", icon = "lucide:settings-2" })
 
-    -- ── LEFT COLUMN: Colors ──────────────────────────────────────────────
+    -- ── LEFT: Color pickers ───────────────────────────────────────────────
     local colorSection = st:Section({ name = "Colors", side = "left" })
 
     colorSection:Colorpicker({
-        name = "Accent Color",
+        name = "Accent",
         default = Theme.Accent,
-        Callback = function(color)
-            local old = Theme.Accent
-            Theme.Accent = color
-            retint(old, color)
-        end
+        Callback = function(c) apply_theme("Accent", c) end
     })
-
     colorSection:Colorpicker({
-        name = "Main Background",
+        name = "Background",
         default = Theme.MainBG,
-        Callback = function(color)
-            local old = Theme.MainBG
-            Theme.MainBG = color
-            retint(old, color)
-        end
+        Callback = function(c) apply_theme("MainBG", c) end
     })
-
     colorSection:Colorpicker({
-        name = "Sidebar Color",
+        name = "Sidebar & Topbar",
         default = Theme.SidebarBG,
-        Callback = function(color)
-            local old = Theme.SidebarBG
-            Theme.SidebarBG = color
-            retint(old, color)
+        Callback = function(c)
+            -- Sidebar and topbar share the same starting color so update both
+            apply_theme("SidebarBG", c)
+            apply_theme("TopbarBG", c)
         end
     })
-
     colorSection:Colorpicker({
-        name = "Element Color",
+        name = "Elements",
         default = Theme.ElementBG,
-        Callback = function(color)
-            local old = Theme.ElementBG
-            Theme.ElementBG = color
-            retint(old, color)
-        end
+        Callback = function(c) apply_theme("ElementBG", c) end
     })
-
     colorSection:Colorpicker({
-        name = "Text Color",
+        name = "Text",
         default = Theme.Text,
-        Callback = function(color)
-            local old = Theme.Text
-            Theme.Text = color
-            retint(old, color)
-        end
+        Callback = function(c) apply_theme("Text", c) end
     })
 
-    -- ── RIGHT COLUMN: Controls & Misc ────────────────────────────────────
+    -- ── RIGHT: Controls ───────────────────────────────────────────────────
     local controlSection = st:Section({ name = "Controls", side = "right" })
 
     controlSection:Keybind({
         name = "Toggle Menu",
-        default = Enum.KeyCode.RightControl,
+        default = toggleKey,
         Callback = function(key)
-            toggleKey = key  -- updates the dynamic variable from Change 1
+            toggleKey = key  -- updates the shared upvalue from Change 1
         end
     })
 
-    -- UI Opacity slider (tweens the whole window transparency)
     controlSection:Slider({
         name = "UI Opacity",
-        min = 0,
-        max = 100,
-        default = 100,
-        decimals = 0,
+        min = 10, max = 100, default = 100, decimals = 0,
         Callback = function(val)
-            local t = 1 - (val / 100)
-            library:tween(main, { BackgroundTransparency = t }, 0.2)
+            library:tween(main, { BackgroundTransparency = 1 - (val / 100) }, 0.2)
         end
     })
 
-    -- Misc section
-    local miscSection = st:Section({ name = "Miscellaneous", side = "right" })
+    -- ── RIGHT: Misc ────────────────────────────────────────────────────────
+    local miscSection = st:Section({ name = "Misc", side = "right" })
 
     miscSection:Button({
-        name = "Reset Colors to Default",
+        name = "Reset Theme to Default",
         Callback = function()
             for k, v in pairs(defaultTheme) do
-                local old = Theme[k]
-                if typeof(old) == "Color3" then
-                    Theme[k] = v
-                    retint(old, v)
-                end
+                if typeof(v) == "Color3" then apply_theme(k, v) end
             end
             library:create_notification({ name = "Theme reset to defaults.", duration = 3 })
         end
@@ -850,12 +862,103 @@ do
 
     miscSection:Button({
         name = "Close Menu",
-        Callback = function()
-            win.toggle_menu(false)
-        end
+        Callback = function() win.toggle_menu(false) end
     })
-end
--- ╚══ END UI SETTINGS TAB ══╝
+
+    -- ── MOBILE BUTTONS ─────────────────────────────────────────────────────
+    local mobileSection = st:Section({ name = "Mobile Buttons", side = "left" })
+
+    if #all_toggles == 0 then
+        mobileSection:Label({ name = "No toggles registered in this script." })
+    else
+        -- Dedicated ScreenGui for floating buttons so they sit above everything
+        local float_screen = library:create("ScreenGui", {
+            Parent = ui_parent,
+            Name  = "MonolithFloats",
+            ResetOnSpawn  = false,
+            DisplayOrder  = 999
+        })
+
+        -- Build a floating pill button for a toggle entry
+        local function make_float(entry, idx)
+            local cols   = 3
+            local col    = (idx - 1) % cols
+            local row_n  = math.floor((idx - 1) / cols)
+
+            local label = #entry.name > 9 and entry.name:sub(1, 8) .. "…" or entry.name
+
+            local fb = library:create("TextButton", {
+                Parent          = float_screen,
+                Size            = dim2(0, 82, 0, 44),
+                Position        = dim2(0, 8 + col * 92, 1, -(58 + row_n * 52)),
+                BackgroundColor3 = entry.tog.enabled and Theme.Accent or Theme.ElementBG,
+                Text            = label,
+                TextColor3      = entry.tog.enabled and Theme.MainBG or Theme.Text,
+                FontFace        = library.font,
+                TextSize        = 11,
+                AutoButtonColor = false,
+                ZIndex          = 5
+            })
+            library:create("UICorner", {
+                Parent       = fb,
+                CornerRadius = dim(0, 22)   -- pill shape
+            })
+            library:create("UIStroke", {
+                Parent    = fb,
+                Color     = Theme.Accent,
+                Thickness = 1.5
+            })
+
+            -- Drag support so players can reposition on mobile
+            library:draggify(fb)
+
+            fb.MouseButton1Click:Connect(function()
+                entry.fire()
+                library:tween(fb, {
+                    BackgroundColor3 = entry.tog.enabled and Theme.Accent or Theme.ElementBG,
+                    TextColor3       = entry.tog.enabled and Theme.MainBG  or Theme.Text
+                }, 0.15)
+            end)
+
+            entry.float_btn = fb
+        end
+
+        -- Collect toggle names for the dropdown
+        local toggle_names = {}
+        for _, t in ipairs(all_toggles) do
+            table.insert(toggle_names, t.name)
+        end
+
+        mobileSection:Label({ name = "Select toggles to give a floating button." })
+
+        mobileSection:Dropdown({
+            name    = "Floating Buttons",
+            items   = toggle_names,
+            multi   = true,
+            default = {},
+            Callback = function(selected_list)
+                -- Tear down all existing float buttons first
+                for _, t in ipairs(all_toggles) do
+                    if t.float_btn then
+                        t.float_btn:Destroy()
+                        t.float_btn = nil
+                    end
+                end
+                -- Rebuild for the newly selected set
+                local idx = 1
+                for _, sel_name in ipairs(selected_list) do
+                    for _, t in ipairs(all_toggles) do
+                        if t.name == sel_name then
+                            make_float(t, idx)
+                            idx = idx + 1
+                            break
+                        end
+                    end
+                end
+            end
+        })
+    end
+end) -- end task.defer
 
 return win
 end
