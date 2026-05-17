@@ -225,7 +225,7 @@ end
 
 -- Window System
 function library:window(props)
-    local win = { items = {}, tabs = {} }
+    local win = { items = {}, tabs = {}, _toggleRegistry = {}, _tabOrder = 0 }
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
     local main = library:create("Frame", {
         Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
@@ -286,7 +286,7 @@ library:create("UIStroke", {
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 })
     local page_holder = library:create("Frame", { Parent = main, Position = dim2(0, 141, 0, 41), Size = dim2(1, -141, 1, -41), BackgroundTransparency = 1 })
-    library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center})
+    library:create("UIListLayout", {Parent = sidebar, Padding = dim(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder})
     library:create("UIPadding", {Parent = sidebar, PaddingTop = dim(0, 10)})
 
     local resizeHandle = library:create("TextButton", { Parent = main, Size = dim2(0, 20, 0, 20), Position = dim2(1, -20, 1, -20), BackgroundTransparency = 1, Text = "↘", TextColor3 = Theme.MutedText, TextSize = 14, FontFace = library.font, ZIndex = 100 })
@@ -327,7 +327,8 @@ end))
 
     function win:Tab(props)
         local tab = { name = props.name or props.Name or "Tab" }
-        local btn = library:create("TextButton", { Parent = sidebar, Size = dim2(1, -16, 0, 32), BackgroundColor3 = Theme.MainBG, Text = "", AutoButtonColor = false })
+        win._tabOrder = win._tabOrder + 1
+        local btn = library:create("TextButton", { Parent = sidebar, Size = dim2(1, -16, 0, 32), BackgroundColor3 = Theme.MainBG, Text = "", AutoButtonColor = false, LayoutOrder = props._layoutOrder or win._tabOrder })
         library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
         local tIcon = get_icon(props.Icon or props.icon or "lucide:folder", Theme.MutedText)
         if tIcon then tIcon.Size = dim2(0, 16, 0, 16); tIcon.Position = dim2(0, 10, 0.5, 0); tIcon.AnchorPoint = Vector2.new(0, 0.5); tIcon.Parent = btn end
@@ -343,7 +344,7 @@ end))
         local right_col = library:create("Frame", { Parent = page, Size = dim2(0.5, -8, 0, 0), Position = dim2(0.5, 8, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
         library:create("UIListLayout", {Parent = right_col, Padding = dim(0, 10)})
 
-        if #win.tabs == 0 then
+        if #win.tabs == 0 and not props._noAutoSelect then
             page.Visible = true; tLabel.TextColor3 = Theme.Text; btn.BackgroundColor3 = Theme.ElementBG; color_icon(tIcon, Theme.Text)
         end
         table.insert(win.tabs, {btn = btn, page = page, label = tLabel, icon = tIcon})
@@ -371,6 +372,8 @@ end))
         end
         function section_api:Toggle(p)
             local tog = { enabled = p.default or false }
+            local boundKey = nil
+            local pickingBind = false
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 6)})
             local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
@@ -380,6 +383,35 @@ end))
             library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
+            -- Keybind button (left of the toggle checkbox)
+            local bindBtn = library:create("TextButton", { Parent = btn, Size = dim2(0, 28, 0, 18), Position = dim2(1, -56, 0.5, -9), BackgroundColor3 = Theme.MainBG, Text = "—", TextColor3 = Theme.MutedText, FontFace = library.font, TextSize = 10, AutoButtonColor = false, ZIndex = 2 })
+            library:create("UICorner", {Parent = bindBtn, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = bindBtn, Color = Theme.Outline, Thickness = 1})
+            bindBtn.MouseButton1Click:Connect(function()
+                pickingBind = true
+                bindBtn.Text = "..."
+                bindBtn.TextColor3 = Theme.Accent
+            end)
+            track_connection(uis.InputBegan:Connect(function(input, gpe)
+                if pickingBind and input.UserInputType == Enum.UserInputType.Keyboard then
+                    pickingBind = false
+                    if input.KeyCode == Enum.KeyCode.Backspace then
+                        boundKey = nil
+                        bindBtn.Text = "—"
+                        bindBtn.TextColor3 = Theme.MutedText
+                    else
+                        boundKey = input.KeyCode
+                        bindBtn.Text = boundKey.Name
+                        bindBtn.TextColor3 = Theme.Text
+                    end
+                    return
+                end
+                if not gpe and boundKey and input.KeyCode == boundKey then
+                    tog.enabled = not tog.enabled
+                    container.Visible = tog.enabled
+                    library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
+                    if p.Callback then p.Callback(tog.enabled) end
+                end
+            end))
             btn.MouseButton1Click:Connect(function()
                 tog.enabled = not tog.enabled; container.Visible = tog.enabled; library:tween(indicator, {BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG}, 0.2)
                 if p.Callback then p.Callback(tog.enabled) end
@@ -394,6 +426,8 @@ end))
                 library:tween(indicator, {BackgroundColor3 = state and Theme.Accent or Theme.MainBG}, 0.2)
                 if p.Callback then p.Callback(state) end
             end
+            -- Register this toggle for Mobile Buttons system
+            table.insert(win._toggleRegistry, { name = p.name or p.Name or "Toggle", api = tog })
             return tog
         end
         function section_api:Slider(p)
@@ -752,7 +786,7 @@ do
     for k, v in pairs(Theme) do defaultTheme[k] = v end
 
     -- Create the tab
-    local st = win:Tab({ name = "UI Settings", icon = "lucide:settings-2" })
+    local st = win:Tab({ name = "UI Settings", icon = "lucide:settings-2", _layoutOrder = 999999, _noAutoSelect = true })
 
     -- ── LEFT COLUMN: Colors ──────────────────────────────────────────────
     local colorSection = st:Section({ name = "Colors", side = "left" })
@@ -854,6 +888,99 @@ do
             win.toggle_menu(false)
         end
     })
+
+    -- ── Mobile Floating Buttons System ──────────────────────────────────
+    local mobileSection = st:Section({ name = "Mobile", side = "left" })
+    local activeFloatingBtns = {}
+
+    local function createFloatingButton(toggleName, toggleApi)
+        local floatGui = library:create("ScreenGui", { Parent = ui_parent, Name = "MobileBtn_" .. toggleName, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling })
+        local floatBtn = library:create("TextButton", {
+            Parent = floatGui, Size = dim2(0, 52, 0, 52),
+            Position = dim2(0, 20, 0.5, -26 + (#activeFloatingBtns * 60)),
+            BackgroundColor3 = toggleApi.enabled and Theme.Accent or Theme.ElementBG,
+            Text = "", AutoButtonColor = false
+        })
+        library:create("UICorner", { Parent = floatBtn, CornerRadius = dim(1, 0) })
+        library:create("UIStroke", { Parent = floatBtn, Color = Theme.Outline, Thickness = 1.5 })
+        -- Abbreviated label (first 3 chars)
+        local abbrev = string.sub(toggleName, 1, 3):upper()
+        local floatLabel = library:create("TextLabel", {
+            Parent = floatBtn, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1,
+            Text = abbrev, TextColor3 = toggleApi.enabled and Theme.MainBG or Theme.Text,
+            FontFace = library.font, TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd
+        })
+
+        -- Dragging logic
+        local dragging, dragStart, startPos = false, nil, nil
+        local hasMoved = false
+        floatBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; hasMoved = false
+                dragStart = input.Position; startPos = floatBtn.Position
+            end
+        end)
+        track_connection(uis.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                if delta.Magnitude > 4 then hasMoved = true end
+                floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end))
+        track_connection(uis.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if dragging and not hasMoved then
+                    -- Tap = toggle
+                    toggleApi:set(not toggleApi.enabled)
+                    library:tween(floatBtn, { BackgroundColor3 = toggleApi.enabled and Theme.Accent or Theme.ElementBG }, 0.15)
+                    floatLabel.TextColor3 = toggleApi.enabled and Theme.MainBG or Theme.Text
+                end
+                dragging = false
+            end
+        end))
+
+        return { gui = floatGui, destroy = function() floatGui:Destroy() end }
+    end
+
+    local function refreshMobileButtons(selectedNames)
+        -- Destroy removed
+        for name, entry in pairs(activeFloatingBtns) do
+            if not table.find(selectedNames, name) then
+                entry.destroy()
+                activeFloatingBtns[name] = nil
+            end
+        end
+        -- Create new
+        for _, name in ipairs(selectedNames) do
+            if not activeFloatingBtns[name] then
+                for _, reg in ipairs(win._toggleRegistry) do
+                    if reg.name == name then
+                        activeFloatingBtns[name] = createFloatingButton(name, reg.api)
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    -- Build the dropdown items lazily from the toggle registry
+    local mobileDropdown = mobileSection:Dropdown({
+        name = "Mobile Buttons",
+        multi = true,
+        items = {},
+        default = {},
+        Callback = function(selected) refreshMobileButtons(selected) end
+    })
+
+    -- Refresh dropdown items whenever a new tab/toggle might have been added
+    -- We expose a helper on win so scripts can call win:RefreshMobileList() after creating all tabs
+    function win:RefreshMobileList()
+        local names = {}
+        for _, reg in ipairs(win._toggleRegistry) do
+            table.insert(names, reg.name)
+        end
+        mobileDropdown:set_items(names)
+    end
 end
 -- ╚══ END UI SETTINGS TAB ══╝
 
