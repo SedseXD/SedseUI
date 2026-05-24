@@ -340,27 +340,17 @@ function library:window(props)
         local tOff = tIcon and 34 or 10
         local tLabel = library:create("TextLabel", { Parent = btn, Text = tab.name, Size = dim2(1, -tOff, 1, 0), Position = dim2(0, tOff, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
 
-        -- [GLOW UPDATE] FIXED: Separated Gradient to prevent property parsing errors
+        -- [GLOW UPDATE] Create the small glowing line indicator at the bottom of the Tab button
         local tab_glow = library:create("Frame", {
-            Parent = btn, 
-            Size = dim2(0.2, 0, 0, 2), 
-            Position = dim2(0.5, 0, 1, 0), 
-            AnchorPoint = Vector2.new(0.5, 1),
-            BackgroundColor3 = tabColor, 
-            BorderSizePixel = 0, 
-            BackgroundTransparency = 1, 
-            ZIndex = 2
+            Parent = btn, Size = dim2(0.2, 0, 0, 2), Position = dim2(0.5, 0, 1, 0), AnchorPoint = Vector2.new(0.5, 1),
+            BackgroundColor3 = tabColor, BorderSizePixel = 0, BackgroundTransparency = 1, ZIndex = 2
         })
-
-        local tab_grad = Instance.new("UIGradient")
-        tab_grad.Rotation = 0
-        -- MUST be NumberSequence for Transparency. ColorSequence will cause the "Color3 expected" error.
-        tab_grad.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1), 
-            NumberSequenceKeypoint.new(0.5, 0), 
-            NumberSequenceKeypoint.new(1, 1)
+        library:create("UIGradient", {
+            Parent = tab_glow,
+            Transparency = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, 1), ColorSequenceKeypoint.new(0.5, 0.1), ColorSequenceKeypoint.new(1, 1)
+            })
         })
-        tab_grad.Parent = tab_glow
 
         local page = library:create("ScrollingFrame", { Parent = page_holder, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false, ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y })
         library:create("UIListLayout", {Parent = page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 15), SortOrder = Enum.SortOrder.LayoutOrder})
