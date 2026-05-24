@@ -235,6 +235,7 @@ function library:window(props)
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
     -- [GLOW UPDATE] Add an ambient window glow to the very bottom that matches your reference image perfectly
+    -- [GLOW UPDATE] Corrected: Using NumberSequence for Transparency
     local window_bottom_glow = library:create("Frame", {
         Parent = main, Size = dim2(1, 0, 0, 120), Position = dim2(0, 0, 1, 0), AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 0
@@ -242,9 +243,9 @@ function library:window(props)
     library:create("UICorner", {Parent = window_bottom_glow, CornerRadius = dim(0, 8)})
     library:create("UIGradient", {
         Parent = window_bottom_glow, Rotation = 90,
-        Transparency = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, 1),      -- Fade completely transparent at the top
-            ColorSequenceKeypoint.new(1, 0.85)    -- Subtle ambient colored glow at the bottom
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),      -- Fade completely transparent at the top
+            NumberSequenceKeypoint.new(1, 0.85)    -- Subtle ambient colored glow at the bottom
         })
     })
 
