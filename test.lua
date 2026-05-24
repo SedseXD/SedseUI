@@ -340,15 +340,17 @@ function library:window(props)
         local tOff = tIcon and 34 or 10
         local tLabel = library:create("TextLabel", { Parent = btn, Text = tab.name, Size = dim2(1, -tOff, 1, 0), Position = dim2(0, tOff, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
 
-        -- [GLOW UPDATE] Create the small glowing line indicator at the bottom of the Tab button
+        -- [GLOW UPDATE] Corrected: Using NumberSequence for Transparency
         local tab_glow = library:create("Frame", {
             Parent = btn, Size = dim2(0.2, 0, 0, 2), Position = dim2(0.5, 0, 1, 0), AnchorPoint = Vector2.new(0.5, 1),
             BackgroundColor3 = tabColor, BorderSizePixel = 0, BackgroundTransparency = 1, ZIndex = 2
         })
         library:create("UIGradient", {
             Parent = tab_glow,
-            Transparency = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, 1), ColorSequenceKeypoint.new(0.5, 0.1), ColorSequenceKeypoint.new(1, 1)
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1), 
+                NumberSequenceKeypoint.new(0.5, 0.1), 
+                NumberSequenceKeypoint.new(1, 1)
             })
         })
 
