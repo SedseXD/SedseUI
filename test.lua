@@ -234,37 +234,20 @@ function library:window(props)
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
--- [GLOW UPDATE] Force Sibling behavior on the ScreenGui so ZIndexes are respected correctly
-    local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
-    local main = library:create("Frame", {
-        Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
-        BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
-    })
-    library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
-    library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
-
-    -- [GLOW UPDATE] High ZIndex (100), explicit visibility, and high opacity (0.2)
+    -- [GLOW UPDATE] Add an ambient window glow to the very bottom that matches your reference image perfectly
+    -- [GLOW UPDATE] Corrected: Using NumberSequence for Transparency
     local window_bottom_glow = library:create("Frame", {
-        Parent = main, 
-        Size = UDim2.new(1, 0, 0, 110), 
-        Position = UDim2.new(0, 0, 1, 0), 
-        AnchorPoint = Vector2.new(0, 1),
-        BackgroundColor3 = Theme.Accent, 
-        BackgroundTransparency = 0,   -- Explicitly opaque (gradient handles transparency)
-        BorderSizePixel = 0, 
-        Active = false,               -- Allows clicks to pass through passively
-        Visible = true,               -- Explicitly visible
-        ZIndex = 100                  -- Renders on top of sections and the sidebar background
+        Parent = main, Size = dim2(1, 0, 0, 120), Position = dim2(0, 0, 1, 0), AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 0
     })
     library:create("UICorner", {Parent = window_bottom_glow, CornerRadius = dim(0, 8)})
-
-    local window_bottom_gradient = Instance.new("UIGradient")
-    window_bottom_gradient.Rotation = 90
-    window_bottom_gradient.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1),      -- Completely transparent at the top
-        NumberSequenceKeypoint.new(1, 0.20)    -- 80% visible bright colored glow at the very bottom
+    library:create("UIGradient", {
+        Parent = window_bottom_glow, Rotation = 90,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),      -- Fade completely transparent at the top
+            NumberSequenceKeypoint.new(1, 0.85)    -- Subtle ambient colored glow at the bottom
+        })
     })
-    window_bottom_gradient.Parent = window_bottom_glow
 
     local topbar = library:create("Frame", { Parent = main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0 })
     library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 8)})
