@@ -234,16 +234,16 @@ function library:window(props)
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
--- [GLOW UPDATE] Updated: Set ZIndex to overlay passively on top of sections
+-- [GLOW UPDATE] Corrected: Low transparency (0.4) for high visibility + elevated ZIndex (15)
     local window_bottom_glow = library:create("Frame", {
         Parent = main, 
-        Size = dim2(1, 0, 0, 100), -- 100px height for a subtle effect
+        Size = dim2(1, 0, 0, 100), -- Subtle height
         Position = dim2(0, 0, 1, 0), 
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = Theme.Accent, 
         BorderSizePixel = 0, 
-        Active = false,            -- Allows all clicks and hovers to pass straight through
-        ZIndex = 4                 -- Forces the glow to overlay on top of section boxes
+        Active = false,            -- Allows clicks to pass straight through
+        ZIndex = 15                -- Forces it on top of sections and background content
     })
     library:create("UICorner", {Parent = window_bottom_glow, CornerRadius = dim(0, 8)})
 
@@ -251,7 +251,7 @@ function library:window(props)
     window_bottom_gradient.Rotation = 90
     window_bottom_gradient.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),      -- Completely transparent at the top
-        NumberSequenceKeypoint.new(1, 0.90)    -- Highly subtle overlay at the bottom (90% transparent)
+        NumberSequenceKeypoint.new(1, 0.40)    -- 60% visible colored glow at the bottom
     })
     window_bottom_gradient.Parent = window_bottom_glow
 
