@@ -328,7 +328,7 @@ function library:window(props)
     end
 
     function win:Tab(props)
-        -- [GLOW UPDATE] Added property fallback for customizable Glow Colors (Defaults to Theme Accent)
+        -- [GLOW UPDATE] Fetch customizable Glow Colors (Defaults to Theme Accent)
         local tabColor = props.GlowColor or props.glowcolor or props.Color or props.color or Theme.Accent
 
         local tab = { name = props.name or props.Name or "Tab" }
@@ -340,17 +340,20 @@ function library:window(props)
         local tOff = tIcon and 34 or 10
         local tLabel = library:create("TextLabel", { Parent = btn, Text = tab.name, Size = dim2(1, -tOff, 1, 0), Position = dim2(0, tOff, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.MutedText, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
 
-        -- [GLOW UPDATE] Create the small glowing line indicator at the bottom of the Tab button
+        -- [GLOW UPDATE] Corrected: Using NumberSequence and NumberSequenceKeypoint for Transparency
         local tab_glow = library:create("Frame", {
             Parent = btn, Size = dim2(0.2, 0, 0, 2), Position = dim2(0.5, 0, 1, 0), AnchorPoint = Vector2.new(0.5, 1),
             BackgroundColor3 = tabColor, BorderSizePixel = 0, BackgroundTransparency = 1, ZIndex = 2
         })
-        library:create("UIGradient", {
-            Parent = tab_glow,
-            Transparency = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, 1), ColorSequenceKeypoint.new(0.5, 0.1), ColorSequenceKeypoint.new(1, 1)
-            })
+        
+        local tab_grad = Instance.new("UIGradient")
+        tab_grad.Rotation = 0
+        tab_grad.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1), 
+            NumberSequenceKeypoint.new(0.5, 0), 
+            NumberSequenceKeypoint.new(1, 1)
         })
+        tab_grad.Parent = tab_glow
 
         local page = library:create("ScrollingFrame", { Parent = page_holder, Size = dim2(1, 0, 1, 0), BackgroundTransparency = 1, Visible = false, ScrollBarThickness = 0, AutomaticCanvasSize = Enum.AutomaticSize.Y })
         library:create("UIListLayout", {Parent = page, FillDirection = Enum.FillDirection.Horizontal, Padding = dim(0, 15), SortOrder = Enum.SortOrder.LayoutOrder})
@@ -363,7 +366,7 @@ function library:window(props)
 
         if #win.tabs == 0 and not props._noAutoSelect then
             page.Visible = true; tLabel.TextColor3 = Theme.Text; btn.BackgroundColor3 = Theme.ElementBG; color_icon(tIcon, Theme.Text)
-            -- [GLOW UPDATE] Apply the glow to the first tab initially loaded
+            -- [GLOW UPDATE] Apply the glow immediately to the first tab
             tab_glow.BackgroundTransparency = 0
             tab_glow.Size = dim2(0.7, 0, 0, 2)
             window_bottom_glow.BackgroundColor3 = tabColor
@@ -374,12 +377,12 @@ function library:window(props)
             for _, t in pairs(win.tabs) do 
                 t.page.Visible = false; t.label.TextColor3 = Theme.MutedText; color_icon(t.icon, Theme.MutedText)
                 library:tween(t.btn, {BackgroundColor3 = Theme.MainBG}, 0.15)
-                -- [GLOW UPDATE] Shrink and hide the glow on old tabs
+                -- [GLOW UPDATE] Reset and hide other active glows
                 library:tween(t.glow, {BackgroundTransparency = 1, Size = dim2(0.2, 0, 0, 2)}, 0.15)
             end
             page.Visible = true; tLabel.TextColor3 = Theme.Text; color_icon(tIcon, Theme.Text)
             library:tween(btn, {BackgroundColor3 = Theme.ElementBG}, 0.15)
-            -- [GLOW UPDATE] Expand the tab indicator & shift ambient window glow to the selected tab's color
+            -- [GLOW UPDATE] Expand selected glow and shift ambient bottom glow color
             library:tween(tab_glow, {BackgroundTransparency = 0, Size = dim2(0.7, 0, 0, 2)}, 0.15)
             library:tween(window_bottom_glow, {BackgroundColor3 = tabColor}, 0.3)
         end)
