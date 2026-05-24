@@ -234,16 +234,27 @@ function library:window(props)
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
--- [GLOW UPDATE] Corrected: Low transparency (0.4) for high visibility + elevated ZIndex (15)
+-- [GLOW UPDATE] Force Sibling behavior on the ScreenGui so ZIndexes are respected correctly
+    local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
+    local main = library:create("Frame", {
+        Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
+        BackgroundColor3 = Theme.MainBG, BorderSizePixel = 0
+    })
+    library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
+    library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
+
+    -- [GLOW UPDATE] High ZIndex (100), explicit visibility, and high opacity (0.2)
     local window_bottom_glow = library:create("Frame", {
         Parent = main, 
-        Size = dim2(1, 0, 0, 100), -- Subtle height
-        Position = dim2(0, 0, 1, 0), 
+        Size = UDim2.new(1, 0, 0, 110), 
+        Position = UDim2.new(0, 0, 1, 0), 
         AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = Theme.Accent, 
+        BackgroundTransparency = 0,   -- Explicitly opaque (gradient handles transparency)
         BorderSizePixel = 0, 
-        Active = false,            -- Allows clicks to pass straight through
-        ZIndex = 15                -- Forces it on top of sections and background content
+        Active = false,               -- Allows clicks to pass through passively
+        Visible = true,               -- Explicitly visible
+        ZIndex = 100                  -- Renders on top of sections and the sidebar background
     })
     library:create("UICorner", {Parent = window_bottom_glow, CornerRadius = dim(0, 8)})
 
@@ -251,7 +262,7 @@ function library:window(props)
     window_bottom_gradient.Rotation = 90
     window_bottom_gradient.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 1),      -- Completely transparent at the top
-        NumberSequenceKeypoint.new(1, 0.40)    -- 60% visible colored glow at the bottom
+        NumberSequenceKeypoint.new(1, 0.20)    -- 80% visible bright colored glow at the very bottom
     })
     window_bottom_gradient.Parent = window_bottom_glow
 
