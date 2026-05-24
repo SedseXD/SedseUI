@@ -234,20 +234,26 @@ function library:window(props)
     library:create("UICorner", {Parent = main, CornerRadius = dim(0, 8)})
     library:create("UIStroke", {Parent = main, Color = Theme.Outline, Thickness = 1})
 
-    -- [GLOW UPDATE] Add an ambient window glow to the very bottom that matches your reference image perfectly
-    -- [GLOW UPDATE] Corrected: Using NumberSequence for Transparency
+-- [GLOW UPDATE] Updated: Set ZIndex to overlay passively on top of sections
     local window_bottom_glow = library:create("Frame", {
-        Parent = main, Size = dim2(1, 0, 0, 120), Position = dim2(0, 0, 1, 0), AnchorPoint = Vector2.new(0, 1),
-        BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 0
+        Parent = main, 
+        Size = dim2(1, 0, 0, 100), -- 100px height for a subtle effect
+        Position = dim2(0, 0, 1, 0), 
+        AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = Theme.Accent, 
+        BorderSizePixel = 0, 
+        Active = false,            -- Allows all clicks and hovers to pass straight through
+        ZIndex = 4                 -- Forces the glow to overlay on top of section boxes
     })
     library:create("UICorner", {Parent = window_bottom_glow, CornerRadius = dim(0, 8)})
-    library:create("UIGradient", {
-        Parent = window_bottom_glow, Rotation = 90,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1),      -- Fade completely transparent at the top
-            NumberSequenceKeypoint.new(1, 0.85)    -- Subtle ambient colored glow at the bottom
-        })
+
+    local window_bottom_gradient = Instance.new("UIGradient")
+    window_bottom_gradient.Rotation = 90
+    window_bottom_gradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),      -- Completely transparent at the top
+        NumberSequenceKeypoint.new(1, 0.90)    -- Highly subtle overlay at the bottom (90% transparent)
     })
+    window_bottom_gradient.Parent = window_bottom_glow
 
     local topbar = library:create("Frame", { Parent = main, Size = dim2(1, 0, 0, 40), BackgroundColor3 = Theme.TopbarBG, BorderSizePixel = 0 })
     library:create("UICorner", {Parent = topbar, CornerRadius = dim(0, 8)})
