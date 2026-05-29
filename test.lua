@@ -526,13 +526,6 @@ function library:window(props)
             }
             win._elementRegistry[p.name or p.Name or "Slider"] = api
             return api
-                    val = math.clamp(val, min, max)
-                    local pct = (val - min) / (max - min)
-                    fill.Size = dim2(pct, 0, 1, 0)
-                    val_lbl.Text = string.format("%." .. decimals .. "f", val)
-                    if p.Callback then p.Callback(val) end
-                end
-            }
         end
         function section_api:Textbox(p)
             local bg = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG })
@@ -663,14 +656,6 @@ function library:window(props)
             }
             win._elementRegistry[p.Name or p.name or "Dropdown"] = api
             return api
-                    build_items(new_items)
-                end,
-                set_value = function(self, val)
-                    selected = val
-                    updateItems()
-                    if p.Callback then p.Callback(selected) end
-                end
-            }
         end
 
         function section_api:Colorpicker(p)
@@ -742,14 +727,6 @@ function library:window(props)
             }
             win._elementRegistry[p.Name or p.name or "Colorpicker"] = api
             return api
-                    h, s, v = new_color:ToHSV()
-                    update_color()
-                    local angle = (h * math.pi * 2) - (math.pi / 2)
-                    pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
-                    local hY = valSlider.AbsoluteSize.Y > 0 and valSlider.AbsoluteSize.Y or 100
-                    valIndicator.Position = dim2(0.5, 0, 0, (1-v) * hY)
-                end
-            }
         end
 
         function section_api:Keybind(p)
