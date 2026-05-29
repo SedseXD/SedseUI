@@ -225,7 +225,13 @@ end
 
 -- Window System
 function library:window(props)
-    local win = { items = {}, tabs = {}, _toggleRegistry = {}, _tabOrder = 0 }
+    local win = { items = {}, tabs = {}, _toggleRegistry = {}, _elementRegistry = {}, _tabOrder = 0 }
+
+    function win:SetElementValue(name, value)
+        local el = self._elementRegistry[name]
+        if not el then return end
+        if el.set then el:set(value) elseif el.set_value then el:set_value(value) end
+    end
     local screen = library:create("ScreenGui", {Parent = ui_parent, Name = "MonolithUI", ResetOnSpawn = false})
     local main = library:create("Frame", {
         Parent = screen, Size = dim2(0, 650, 0, 450), Position = dim2(0.5, -325, 0.5, -225),
@@ -456,7 +462,9 @@ function library:window(props)
                 if p.Callback then p.Callback(state) end
             end
             
-            table.insert(win._toggleRegistry, { name = p.name or p.Name or "Toggle", api = tog })
+            local elName = p.name or p.Name or "Toggle"
+            table.insert(win._toggleRegistry, { name = elName, api = tog })
+            win._elementRegistry[elName] = tog
             return tog
         end
         function section_api:Slider(p)
@@ -507,8 +515,17 @@ function library:window(props)
                 end 
             end))
 
-            return {
+            local api = {
                 set = function(self, val)
+                    val = math.clamp(val, min, max)
+                    local pct = (val - min) / (max - min)
+                    fill.Size = dim2(pct, 0, 1, 0)
+                    val_lbl.Text = string.format("%." .. decimals .. "f", val)
+                    if p.Callback then p.Callback(val) end
+                end
+            }
+            win._elementRegistry[p.name or p.Name or "Slider"] = api
+            return api
                     val = math.clamp(val, min, max)
                     local pct = (val - min) / (max - min)
                     fill.Size = dim2(pct, 0, 1, 0)
@@ -523,7 +540,14 @@ function library:window(props)
             if p.Premium or p.premium then PremiumOverlay(bg) end
             local box = library:create("TextBox", { Parent = bg, Size = dim2(1, -16, 1, 0), Position = dim2(0, 8, 0, 0), BackgroundTransparency = 1, Text = "", PlaceholderText = p.placeholder or p.Placeholder or (p.name or "Textbox"), TextColor3 = Theme.Text, PlaceholderColor3 = Theme.MutedText, FontFace = library.font, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left })
             box.FocusLost:Connect(function() if p.Callback then p.Callback(box.Text) end end)
-            return {}
+            local api = {
+                set = function(self, text)
+                    box.Text = tostring(text)
+                    if p.Callback then p.Callback(box.Text) end
+                end
+            }
+            win._elementRegistry[p.name or p.Name or "Textbox"] = api
+            return api
         end
         function section_api:Dropdown(p)
             local isMulti = p.multi or p.Multi
@@ -624,8 +648,21 @@ function library:window(props)
                 for _, iBtn in pairs(itemBtns) do iBtn.btn.Visible = (q == "" or iBtn.name:lower():find(q) ~= nil) end 
             end)
             
-            return {
+            local api = {
                 set_items = function(self, new_items)
+                    build_items(new_items)
+                end,
+                set_value = function(self, val)
+                    selected = val
+                    updateItems()
+                    if p.Callback then p.Callback(selected) end
+                end,
+                set = function(self, val)
+                    self:set_value(val)
+                end
+            }
+            win._elementRegistry[p.Name or p.name or "Dropdown"] = api
+            return api
                     build_items(new_items)
                 end,
                 set_value = function(self, val)
@@ -693,8 +730,18 @@ function library:window(props)
                     end
                 end
             end))
-            return {
+            local api = {
                 set = function(self, new_color)
+                    h, s, v = new_color:ToHSV()
+                    update_color()
+                    local angle = (h * math.pi * 2) - (math.pi / 2)
+                    pickerDot.Position = dim2(0.5 + math.cos(angle) * 0.5 * s, 0, 0.5 + math.sin(angle) * 0.5 * s, 0)
+                    local hY = valSlider.AbsoluteSize.Y > 0 and valSlider.AbsoluteSize.Y or 100
+                    valIndicator.Position = dim2(0.5, 0, 0, (1-v) * hY)
+                end
+            }
+            win._elementRegistry[p.Name or p.name or "Colorpicker"] = api
+            return api
                     h, s, v = new_color:ToHSV()
                     update_color()
                     local angle = (h * math.pi * 2) - (math.pi / 2)
@@ -723,7 +770,15 @@ function library:window(props)
                     if p.Callback then p.Callback(key) end
                 end
             end))
-            return {}
+            local api = {
+                set = function(self, new_key)
+                    key = typeof(new_key) == "string" and Enum.KeyCode[new_key] or new_key
+                    btn.Text = "  " .. (p.Name or p.name or "Keybind") .. " : [" .. key.Name .. "]"
+                    if p.Callback then p.Callback(key) end
+                end
+            }
+            win._elementRegistry[p.Name or p.name or "Keybind"] = api
+            return api
         end
 
         function section_api:Status(p)
