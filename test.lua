@@ -465,6 +465,13 @@ function library:window(props)
             local elName = p.name or p.Name or "Toggle"
             table.insert(win._toggleRegistry, { name = elName, api = tog })
             win._elementRegistry[elName] = tog
+            
+            -- [FIX]: Automatically refresh the Mobile Buttons dropdown
+            -- whenever a new toggle gets added to the UI!
+            if win.RefreshMobileList then
+                win:RefreshMobileList()
+            end
+            
             return tog
         end
         function section_api:Slider(p)
