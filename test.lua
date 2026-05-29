@@ -652,6 +652,9 @@ function library:window(props)
                 end,
                 set = function(self, val)
                     self:set_value(val)
+                end,
+                get_value = function(self)
+                    return selected
                 end
             }
             win._elementRegistry[p.Name or p.name or "Dropdown"] = api
