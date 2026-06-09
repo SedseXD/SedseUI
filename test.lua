@@ -268,7 +268,7 @@ function library:window(props)
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1, 
         -- rbxthumb automatically converts the Decal ID into an Image ID
-        Image = "rbxthumb://type=Asset&id=88904818746239&w=420&h=420",
+        Image = "rbxassetid://91663650023358",
         ScaleType = Enum.ScaleType.Fit 
     })
 
