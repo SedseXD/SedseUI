@@ -264,7 +264,7 @@ function library:window(props)
     library:create("ImageLabel", {
         Parent = topbar, 
         Size = dim2(0, 100, 0, 24), 
-        Position = dim2(0, 0, 0.5, 0),
+        Position = dim2(-0.2, 0, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1, 
         -- rbxthumb automatically converts the Decal ID into an Image ID
