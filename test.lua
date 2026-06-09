@@ -263,12 +263,13 @@ function library:window(props)
 
     library:create("ImageLabel", {
         Parent = topbar, 
-        Size = dim2(0, 100, 0, 24), -- Adjust the X size (100) based on your image's aspect ratio
+        Size = dim2(0, 100, 0, 24), 
         Position = dim2(0, 12, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1, 
-        Image = "rbxassetid://88904818746239",
-        ScaleType = Enum.ScaleType.Fit -- Ensures the image scales properly without stretching
+        -- rbxthumb automatically converts the Decal ID into an Image ID
+        Image = "rbxthumb://type=Asset&id=88904818746239&w=420&h=420",
+        ScaleType = Enum.ScaleType.Fit 
     })
 
     local minBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -70, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
