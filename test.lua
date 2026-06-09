@@ -261,13 +261,14 @@ function library:window(props)
     library:create("Frame", {Parent = topbar, Size = dim2(1, 0, 0, 1), Position = dim2(0, 0, 1, 0), BackgroundColor3 = Theme.Outline, BorderSizePixel = 0}) 
     library:draggify(main, topbar)
 
-    local winIcon = get_icon(props.Icon or props.icon or "lucide:layout-dashboard", Theme.Text)
-    if winIcon then winIcon.Size = dim2(0, 18, 0, 18); winIcon.Position = dim2(0, 12, 0.5, 0); winIcon.AnchorPoint = Vector2.new(0, 0.5); winIcon.Parent = topbar end
-    local titleOff = winIcon and 38 or 12
-
-    library:create("TextLabel", {
-        Parent = topbar, Text = (props.name or props.Name or "Nebula UI"), Size = dim2(1, -(titleOff + 80), 1, 0), Position = dim2(0, titleOff, 0, 0),
-        BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 18
+    library:create("ImageLabel", {
+        Parent = topbar, 
+        Size = dim2(0, 100, 0, 24), -- Adjust the X size (100) based on your image's aspect ratio
+        Position = dim2(0, 12, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundTransparency = 1, 
+        Image = "rbxassetid://88904818746239",
+        ScaleType = Enum.ScaleType.Fit -- Ensures the image scales properly without stretching
     })
 
     local minBtn = library:create("TextButton", { Parent = topbar, Size = dim2(0, 30, 0, 24), Position = dim2(1, -70, 0.5, -12), BackgroundColor3 = Theme.TopbarBG, Text = "", AutoButtonColor = false })
