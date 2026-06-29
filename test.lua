@@ -961,6 +961,15 @@ do
     -- ── Mobile Floating Buttons System ──────────────────────────────────
     local mobileSection = st:Section({ name = "Mobile", side = "left" })
     local activeFloatingBtns = {}
+    local mobileButtonsLocked = false
+
+    mobileSection:Toggle({
+        name = "Lock Mobile Buttons",
+        default = mobileButtonsLocked,
+        Callback = function(val)
+            mobileButtonsLocked = val
+        end
+    })
 
     local function createFloatingButton(toggleName, toggleApi)
         local floatGui = library:create("ScreenGui", { Parent = ui_parent, Name = "MobileBtn_" .. toggleName, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling })
@@ -991,9 +1000,11 @@ do
         end)
         track_connection(uis.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local delta = input.Position - dragStart
-                if delta.Magnitude > 4 then hasMoved = true end
-                floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                if not mobileButtonsLocked then
+                    local delta = input.Position - dragStart
+                    if delta.Magnitude > 4 then hasMoved = true end
+                    floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
             end
         end))
         track_connection(uis.InputEnded:Connect(function(input)
