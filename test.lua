@@ -90,12 +90,14 @@ function library:draggify(frame, drag_area)
     local dragging, startPos, startInput
     (drag_area or frame).InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if frame:GetAttribute("PositionLocked") then return end
             dragging = true; startInput = input.Position; startPos = frame.Position
         end
     end)
     -- TRACKED CONNECTION
     track_connection(uis.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            if frame:GetAttribute("PositionLocked") then dragging = false return end
             local delta = input.Position - startInput
             frame.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
@@ -324,6 +326,13 @@ function library:window(props)
     win.toggle_menu = function(a, b) 
         local state = (type(a) == "boolean") and a or b; if state == nil then state = not main.Visible end; main.Visible = state
     end
+    
+    win.toggle_lock = function(state)
+        win._isLocked = (state == nil) and not win._isLocked or state
+        main:SetAttribute("PositionLocked", win._isLocked)
+        return win._isLocked
+    end
+    
     local toggleKey = Enum.KeyCode.RightControl
     track_connection(uis.InputBegan:Connect(function(input, gpe)
         if not gpe and input.KeyCode == toggleKey then win.toggle_menu() end
@@ -517,11 +526,17 @@ function library:window(props)
                 end 
             end))
 
-            track_connection(uis.InputChanged:Connect(function(i) 
-                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then 
-                    update_slider(i.Position.X) 
-                end 
-            end))
+            track_connection(uis.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                if delta.Magnitude > 4 then hasMoved = true end
+                
+                -- Always calculate `hasMoved` above, but only move the button if not locked
+                if not mobileButtonsLocked then
+                    floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end
+        end))
 
             local api = {
                 set = function(self, val)
@@ -961,15 +976,6 @@ do
     -- ── Mobile Floating Buttons System ──────────────────────────────────
     local mobileSection = st:Section({ name = "Mobile", side = "left" })
     local activeFloatingBtns = {}
-    local mobileButtonsLocked = false
-
-    mobileSection:Toggle({
-        name = "Lock Mobile Buttons",
-        default = mobileButtonsLocked,
-        Callback = function(val)
-            mobileButtonsLocked = val
-        end
-    })
 
     local function createFloatingButton(toggleName, toggleApi)
         local floatGui = library:create("ScreenGui", { Parent = ui_parent, Name = "MobileBtn_" .. toggleName, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling })
@@ -1000,11 +1006,9 @@ do
         end)
         track_connection(uis.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                if not mobileButtonsLocked then
-                    local delta = input.Position - dragStart
-                    if delta.Magnitude > 4 then hasMoved = true end
-                    floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                end
+                local delta = input.Position - dragStart
+                if delta.Magnitude > 4 then hasMoved = true end
+                floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end))
         track_connection(uis.InputEnded:Connect(function(input)
