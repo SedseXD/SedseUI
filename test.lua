@@ -493,13 +493,36 @@ function library:window(props)
             if p.Premium or p.premium then PremiumOverlay(s) end
             
             local lbl = library:create("TextLabel", { Parent = s, Text = "  " .. (p.name or p.Name or "Slider"), Size = dim2(1, 0, 0, 25), BackgroundTransparency = 1, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13 })
-            local val_lbl = library:create("TextLabel", { Parent = s, Text = string.format("%."..decimals.."f", default), Size = dim2(0, 50, 0, 25), Position = dim2(1, -55, 0, 0), BackgroundTransparency = 1, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, FontFace = library.font, TextSize = 13 })
+            
+            -- Changed to TextBox for manual input
+            local val_box = library:create("TextBox", { 
+                Parent = s, 
+                Text = string.format("%."..decimals.."f", default), 
+                Size = dim2(0, 50, 0, 25), 
+                Position = dim2(1, -55, 0, 0), 
+                BackgroundTransparency = 1, 
+                TextColor3 = Theme.Accent, 
+                TextXAlignment = Enum.TextXAlignment.Right, 
+                FontFace = library.font, 
+                TextSize = 13,
+                ClearTextOnFocus = false
+            })
             
             local bar_bg = library:create("Frame", { Parent = s, Size = dim2(1, -20, 0, 6), Position = dim2(0, 10, 0, 32), BackgroundColor3 = Theme.MainBG })
             library:create("UICorner", {Parent = bar_bg, CornerRadius = dim(1, 0)})
             
-            local fill = library:create("Frame", { Parent = bar_bg, Size = dim2((default - min)/(max - min), 0, 1, 0), BackgroundColor3 = Theme.Accent })
+            local pct_default = math.clamp((default - min) / (max - min), 0, 1)
+            local fill = library:create("Frame", { Parent = bar_bg, Size = dim2(pct_default, 0, 1, 0), BackgroundColor3 = Theme.Accent })
             library:create("UICorner", {Parent = fill, CornerRadius = dim(1, 0)})
+            
+            -- The added "blob" / knob that helps dragging
+            local knob = library:create("Frame", { 
+                Parent = fill, 
+                Size = dim2(0, 14, 0, 14), 
+                Position = dim2(1, -7, 0.5, -7), 
+                BackgroundColor3 = Theme.Text 
+            })
+            library:create("UICorner", {Parent = knob, CornerRadius = dim(1, 0)})
             
             local dragging = false
             
@@ -508,15 +531,40 @@ function library:window(props)
                 local value = min + ((max - min) * pct) 
                 
                 fill.Size = dim2(pct, 0, 1, 0)
-                val_lbl.Text = string.format("%." .. decimals .. "f", value)
+                val_box.Text = string.format("%." .. decimals .. "f", value)
                 
                 if p.Callback then p.Callback(value) end
             end
+
+            -- Allow users to type their own number
+            val_box.FocusLost:Connect(function()
+                local num = tonumber(val_box.Text)
+                if num then
+                    -- Clamps to ensure they didn't pass the max limit
+                    num = math.clamp(num, min, max)
+                    local pct = (num - min) / (max - min)
+                    fill.Size = dim2(pct, 0, 1, 0)
+                    val_box.Text = string.format("%." .. decimals .. "f", num)
+                    if p.Callback then p.Callback(num) end
+                else
+                    -- Revert to current slider value if invalid input was provided (letters, symbols, etc.)
+                    local pct = fill.Size.X.Scale
+                    local value = min + ((max - min) * pct)
+                    val_box.Text = string.format("%." .. decimals .. "f", value)
+                end
+            end)
 
             bar_bg.InputBegan:Connect(function(i) 
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
                     dragging = true 
                     update_slider(i.Position.X) 
+                end 
+            end)
+            
+            -- Allow dragging by interacting directly with the knob too
+            knob.InputBegan:Connect(function(i) 
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+                    dragging = true 
                 end 
             end)
 
@@ -526,24 +574,19 @@ function library:window(props)
                 end 
             end))
 
+            -- Fixed: Replaced the accidentally pasted mobile dragging logic with proper slider logic
             track_connection(uis.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local delta = input.Position - dragStart
-                if delta.Magnitude > 4 then hasMoved = true end
-                
-                -- Always calculate `hasMoved` above, but only move the button if not locked
-                if not mobileButtonsLocked then
-                    floatBtn.Position = dim2(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    update_slider(input.Position.X)
                 end
-            end
-        end))
+            end))
 
             local api = {
                 set = function(self, val)
                     val = math.clamp(val, min, max)
                     local pct = (val - min) / (max - min)
                     fill.Size = dim2(pct, 0, 1, 0)
-                    val_lbl.Text = string.format("%." .. decimals .. "f", val)
+                    val_box.Text = string.format("%." .. decimals .. "f", val)
                     if p.Callback then p.Callback(val) end
                 end
             }
