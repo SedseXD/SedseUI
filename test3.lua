@@ -409,10 +409,45 @@ function library:window(props)
             return { instance = l, set = function(txt) l.Text = txt end }
         end
         function section_api:Button(p)
-            local b = library:create("TextButton", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = " " .. (p.name or p.Name or "Button"), TextColor3 = Theme.Text, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
-            library:create("UICorner", {Parent = b, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = b, Color = Theme.Outline, Thickness = 1})
+            local b = library:create("TextButton", { 
+                Parent = p.Parent or self.elements, 
+                Size = dim2(1, 0, 0, 32), 
+                BackgroundColor3 = Theme.ElementBG, 
+                Text = "  " .. (p.name or p.Name or "Button"), 
+                TextColor3 = Theme.Text, 
+                TextXAlignment = Enum.TextXAlignment.Left, -- Left-aligned to match toggles/dropdowns
+                FontFace = library.font, 
+                TextSize = 13, 
+                AutoButtonColor = false 
+            })
+            library:create("UICorner", {Parent = b, CornerRadius = dim(0, 6)})
+            library:create("UIStroke", {Parent = b, Color = Theme.Outline, Thickness = 1})
+            
+            -- Add the mouse-pointer-click icon to the right edge
+            local clickIcon = get_icon("lucide:mouse-pointer-click", Theme.MutedText)
+            if clickIcon then
+                clickIcon.Size = dim2(0, 16, 0, 16)
+                clickIcon.Position = dim2(1, -26, 0.5, 0)
+                clickIcon.AnchorPoint = Vector2.new(0, 0.5)
+                clickIcon.Parent = b
+            end
+
             if p.Premium or p.premium then PremiumOverlay(b) end
-            b.MouseButton1Click:Connect(function() library:tween(b, {BackgroundColor3 = Theme.HoverBG}, 0.1); task.wait(0.1); library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1); if p.Callback then p.Callback() end end)
+            
+            -- Subtle hover effect to make the icon light up
+            b.MouseEnter:Connect(function() 
+                if clickIcon then color_icon(clickIcon, Theme.Text) end 
+            end)
+            b.MouseLeave:Connect(function() 
+                if clickIcon then color_icon(clickIcon, Theme.MutedText) end 
+            end)
+
+            b.MouseButton1Click:Connect(function() 
+                library:tween(b, {BackgroundColor3 = Theme.HoverBG}, 0.1)
+                task.wait(0.1)
+                library:tween(b, {BackgroundColor3 = Theme.ElementBG}, 0.1)
+                if p.Callback then p.Callback() end 
+            end)
             return {}
         end
         function section_api:Toggle(p)
