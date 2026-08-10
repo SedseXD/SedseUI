@@ -477,13 +477,17 @@ function library:window(props)
             local tog = { enabled = p.default or false, NoSave = p.NoSave or p.nosave }
             local boundKey = nil
             local pickingBind = false
+            
             local holder = library:create("Frame", { Parent = p.Parent or self.elements, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = holder, Padding = dim(0, 6)})
+            
             local btn = library:create("TextButton", { Parent = holder, Size = dim2(1, 0, 0, 32), BackgroundColor3 = Theme.ElementBG, Text = "  " .. (p.name or p.Name or "Toggle"), TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, FontFace = library.font, TextSize = 13, AutoButtonColor = false })
             library:create("UICorner", {Parent = btn, CornerRadius = dim(0, 6)}); library:create("UIStroke", {Parent = btn, Color = Theme.Outline, Thickness = 1})
             if p.Premium or p.premium then PremiumOverlay(btn) end
+            
             local indicator = library:create("Frame", { Parent = btn, Size = dim2(0, 16, 0, 16), Position = dim2(1, -24, 0.5, -8), BackgroundColor3 = tog.enabled and Theme.Accent or Theme.MainBG })
             library:create("UICorner", {Parent = indicator, CornerRadius = dim(0, 4)}); library:create("UIStroke", {Parent = indicator, Color = Theme.Outline, Thickness = 1})
+            
             local container = library:create("Frame", { Parent = holder, Size = dim2(1, 0, 0, 0), BackgroundTransparency = 1, Visible = tog.enabled, AutomaticSize = Enum.AutomaticSize.Y })
             library:create("UIListLayout", {Parent = container, Padding = dim(0, 6)}); library:create("UIPadding", {Parent = container, PaddingLeft = dim(0, 14)})
             
@@ -510,6 +514,8 @@ function library:window(props)
                     end
                     return
                 end
+                
+                -- Internal UI keybind listener (automatically toggles when key is pressed)
                 if not gpe and boundKey and input.KeyCode == boundKey then
                     tog:set(not tog.enabled)
                 end
@@ -524,22 +530,22 @@ function library:window(props)
             function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
             function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
             
-            -- DATA API (Fixed Keybind Saving)
+            -- DATA API (Saves state and keybind together)
             function tog:get_value()
                 return {
-                    state = self.enabled,
-                    key = boundKey and boundKey.Name or nil
+                    State = self.enabled,
+                    Key = boundKey and boundKey.Name or nil
                 }
             end
             
             function tog:set(val)
                 local stateToSet = self.enabled
                 
-                -- Support loading from config containing keybinds, while keeping backward compatibility
+                -- Support loading from config containing keybinds, while keeping backward compatibility with old boolean saves
                 if type(val) == "table" then
-                    stateToSet = val.state
-                    if val.key then
-                        boundKey = Enum.KeyCode[val.key]
+                    if val.State ~= nil then stateToSet = val.State end
+                    if val.Key then
+                        boundKey = Enum.KeyCode[val.Key]
                         bindBtn.Text = boundKey.Name
                         bindBtn.TextColor3 = Theme.Text
                     else
@@ -555,7 +561,7 @@ function library:window(props)
                 container.Visible = stateToSet
                 library:tween(indicator, {BackgroundColor3 = stateToSet and Theme.Accent or Theme.MainBG}, 0.2)
                 
-                -- Ensure Callback always fires to sync script behavior on load
+                -- Always fire callback so the main script syncs its states!
                 if p.Callback then 
                     task.spawn(function() p.Callback(stateToSet) end)
                 end
