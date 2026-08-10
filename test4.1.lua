@@ -352,7 +352,10 @@ function library:window(props)
         for name, value in pairs(data) do
             local el = self._elementRegistry[name]
             if el and type(el.set) == "function" then
-                pcall(function() el:set(value) end)
+                local success, err = pcall(function() el:set(value) end)
+                if not success then
+                    warn("[Config Error] Failed to load UI element '" .. tostring(name) .. "': " .. tostring(err))
+                end
             end
         end
         task.spawn(function()
@@ -503,7 +506,7 @@ function library:window(props)
             track_connection(uis.InputBegan:Connect(function(input, gpe)
                 if pickingBind and input.UserInputType == Enum.UserInputType.Keyboard then
                     pickingBind = false
-                    if input.KeyCode == Enum.KeyCode.Backspace then
+                    if input.KeyCode == Enum.KeyCode.Backspace or input.KeyCode == Enum.KeyCode.Escape then
                         boundKey = nil
                         bindBtn.Text = "—"
                         bindBtn.TextColor3 = Theme.MutedText
@@ -515,7 +518,6 @@ function library:window(props)
                     return
                 end
                 
-                -- Internal UI keybind listener (automatically toggles when key is pressed)
                 if not gpe and boundKey and input.KeyCode == boundKey then
                     tog:set(not tog.enabled)
                 end
@@ -530,7 +532,7 @@ function library:window(props)
             function tog:Colorpicker(np) np = np or {}; np.Parent = container; return section_api:Colorpicker(np) end
             function tog:Keybind(np) np = np or {}; np.Parent = container; return section_api:Keybind(np) end
             
-            -- DATA API (Saves state and keybind together)
+            -- ULTRA-SAFE DATA API
             function tog:get_value()
                 return {
                     State = self.enabled,
@@ -541,27 +543,38 @@ function library:window(props)
             function tog:set(val)
                 local stateToSet = self.enabled
                 
-                -- Support loading from config containing keybinds, while keeping backward compatibility with old boolean saves
+                -- Detect if we are loading the new Table format (State + Keybind)
                 if type(val) == "table" then
                     if val.State ~= nil then stateToSet = val.State end
+                    
                     if val.Key then
-                        boundKey = Enum.KeyCode[val.Key]
-                        bindBtn.Text = boundKey.Name
-                        bindBtn.TextColor3 = Theme.Text
+                        -- Wrap in pcall to prevent invalid keys from breaking the UI update
+                        local s, k = pcall(function() return Enum.KeyCode[val.Key] end)
+                        if s and k then
+                            boundKey = k
+                            bindBtn.Text = boundKey.Name
+                            bindBtn.TextColor3 = Theme.Text
+                        else
+                            boundKey = nil
+                            bindBtn.Text = "—"
+                            bindBtn.TextColor3 = Theme.MutedText
+                        end
                     else
                         boundKey = nil
                         bindBtn.Text = "—"
                         bindBtn.TextColor3 = Theme.MutedText
                     end
                 else
-                    stateToSet = val
+                    -- Fallback for old configs that saved as pure Booleans (like your test2.json)
+                    if type(val) == "boolean" then
+                        stateToSet = val
+                    end
                 end
 
                 self.enabled = stateToSet
                 container.Visible = stateToSet
                 library:tween(indicator, {BackgroundColor3 = stateToSet and Theme.Accent or Theme.MainBG}, 0.2)
                 
-                -- Always fire callback so the main script syncs its states!
                 if p.Callback then 
                     task.spawn(function() p.Callback(stateToSet) end)
                 end
